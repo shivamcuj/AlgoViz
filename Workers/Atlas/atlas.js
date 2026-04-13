@@ -15,7 +15,7 @@
         }
 
         // 1. Init state — creates root placeholder
-        AtlasState.init();
+        AtlasInternalState.init();
 
         // 2. Init renderer — sets up canvas context, DPR, resize listener
         AtlasRenderer.init(canvas);

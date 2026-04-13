@@ -105,7 +105,7 @@ const AtlasInput = (() => {
             return;   // don't update hover while panning
         }
 
-        if (AtlasState.isFrozen()) return;
+        if (AtlasInternalState.isFrozen()) return;
         const pt = AtlasRenderer.eventToCanvas(e);
         const node = AtlasRenderer.hitTest(pt.x, pt.y);
         AtlasRenderer.setHoveredNode(node ? node.id : null);
@@ -126,7 +126,7 @@ const AtlasInput = (() => {
     function _onClick(e) {
         if (_isPanning) return;            // ignore accidental clicks during pan
         if (e.button !== 0) return;        // left-click only
-        if (AtlasState.isFrozen()) return;
+        if (AtlasInternalState.isFrozen()) return;
         const pt = AtlasRenderer.eventToCanvas(e);
         const node = AtlasRenderer.hitTest(pt.x, pt.y);
         if (!node || node.isActive) return;
@@ -179,16 +179,14 @@ const AtlasInput = (() => {
         const nodeId = _pendingNodeId;
         _closeOverlay();
 
-        AtlasState.activateNode(nodeId, value);
+        AtlasInternalState.activateNode(nodeId, value);
         AtlasLayout.compute(_canvas);
         AtlasRenderer.render();
     }
 
     // ── submit tree ──────────────────────────────────────────────────────────
     function _onSubmitTree() {
-        const serialized = AtlasState.serialize();
-
-        // ── Resolve selected algorithm ────────────────────────────────────────
+        const serialized = AtlasInternalState.getSnapshot();
         const algoSelect = document.getElementById('atlas-algo-select');
         const algoValue = algoSelect ? algoSelect.value : 'bfs';
         const algoLabels = {
@@ -196,21 +194,6 @@ const AtlasInput = (() => {
             'dfs-inorder': 'DFS — In-order',
             'dfs-preorder': 'DFS — Pre-order',
             'dfs-postorder': 'DFS — Post-order',
-        };
-
-        const traversalOrder = [];
-        if (algoValue === 'bfs') {
-            serialized.traversalHelpers.bfs(n => traversalOrder.push(n.value));
-        } else {
-            const dfsVariant = algoValue.replace('dfs-', '');  // 'inorder' | 'preorder' | 'postorder'
-            serialized.traversalHelpers.dfs(n => traversalOrder.push(n.value), dfsVariant);
-        }
-
-        // Attach to output
-        serialized.selectedAlgorithm = {
-            id: algoValue,
-            label: algoLabels[algoValue] ?? algoValue,
-            result: traversalOrder,
         };
 
         // visual freeze feedback
@@ -221,11 +204,9 @@ const AtlasInput = (() => {
 
         // ── Console output ────────────────────────────────────────────────────
         console.group('%c[ATLAS] Tree Submitted', 'color:#a78bfa;font-weight:bold');
-        console.log('Algorithm:', serialized.selectedAlgorithm.label);
-        console.log('Traversal order:', traversalOrder);
-        console.log('Root:', serialized.root);
+        console.log('Algorithm:', algoLabels[algoValue] ?? algoValue);
+        console.log('Root ID:', serialized.rootId);
         console.log('Nodes:', serialized.nodes);
-        console.log('Edges:', serialized.edges);
         console.groupEnd();
 
         // expose on window for external algorithm workers

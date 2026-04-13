@@ -1,7 +1,7 @@
 /**
  * ATLAS — Renderer
  * Draws the binary tree onto the canvas using CanvasRenderingContext2D.
- * Reads positions from AtlasState and uses AtlasLayout for the radius constant.
+ * Reads positions from AtlasInternalState and uses AtlasLayout for the radius constant.
  *
  * Colour palette:
  *   Inactive (dimmed) node  — dark background, muted stroke, low opacity label
@@ -85,7 +85,7 @@ const AtlasRenderer = (() => {
         _ctx.save();
         _ctx.translate(_camX, _camY);
 
-        const nodes = AtlasState.getAllNodes();
+        const nodes = AtlasInternalState.getAllNodes();
 
         // draw edges first (below nodes)
         nodes.forEach(node => {
@@ -100,7 +100,7 @@ const AtlasRenderer = (() => {
         _ctx.restore();  // end camera transform
 
         // frozen overlay drawn in screen space (no camera)
-        if (AtlasState.isFrozen()) _drawFrozenOverlay(w, h);
+        if (AtlasInternalState.isFrozen()) _drawFrozenOverlay(w, h);
     }
 
     // ── background ───────────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ const AtlasRenderer = (() => {
     function _drawEdge(parentNode, side) {
         const childId = parentNode[side];
         if (!childId) return;
-        const child = AtlasState.getNode(childId);
+        const child = AtlasInternalState.getNode(childId);
         if (!child) return;
 
         const px = parentNode.x, py = parentNode.y;
@@ -142,7 +142,7 @@ const AtlasRenderer = (() => {
     // ── nodes ────────────────────────────────────────────────────────────────
     function _drawNode(node) {
         const r = R();
-        const isHovered = node.id === _hoverId && !AtlasState.isFrozen();
+        const isHovered = node.id === _hoverId && !AtlasInternalState.isFrozen();
         const { x, y } = node;
 
         _ctx.save();
@@ -232,7 +232,7 @@ const AtlasRenderer = (() => {
         // Transform screen point → world point by subtracting camera offset
         const wx = cx - _camX;
         const wy = cy - _camY;
-        const nodes = AtlasState.getAllNodes();
+        const nodes = AtlasInternalState.getAllNodes();
         for (let i = nodes.length - 1; i >= 0; i--) {
             const n = nodes[i];
             const dx = n.x - wx;

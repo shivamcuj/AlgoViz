@@ -22,13 +22,13 @@ const AtlasLayout = (() => {
 
     // ── public: compute positions ─────────────────────────────────────────────
     function compute(canvas) {
-        const rootId = AtlasState.getRootId();
+        const rootId = AtlasInternalState.getRootId();
         if (!rootId) return;
 
         // Logical canvas dimensions (CSS pixels, not physical)
         const W = canvas.getBoundingClientRect().width  || canvas.clientWidth  || 800;
 
-        const allNodes = AtlasState.getAllNodes();
+        const allNodes = AtlasInternalState.getAllNodes();
 
         // Fast id → node lookup
         const map = {};
