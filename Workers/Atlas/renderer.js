@@ -14,34 +14,34 @@ const AtlasRenderer = (() => {
 
     // ── design tokens ────────────────────────────────────────────────────────
     const C = {
-        bg:             '#0d0f1a',
-        gridLine:       'rgba(255,255,255,0.03)',
+        bg: '#0d0f1a',
+        gridLine: 'rgba(255,255,255,0.03)',
 
-        nodeActive:     ['#6c63ff', '#a78bfa'],   // gradient stops
-        nodeDimmed:     '#1e2140',
+        nodeActive: ['#6c63ff', '#a78bfa'],   // gradient stops
+        nodeDimmed: '#1e2140',
         nodeStrokeActive: '#a78bfa',
         nodeStrokeDimmed: '#2e3260',
-        nodeStrokeHover:  '#f0abfc',
+        nodeStrokeHover: '#f0abfc',
 
-        labelActive:    '#ffffff',
-        labelDimmed:    'rgba(120,130,180,0.45)',
-        labelPlus:      'rgba(140,150,200,0.6)',
+        labelActive: '#ffffff',
+        labelDimmed: 'rgba(120,130,180,0.45)',
+        labelPlus: 'rgba(140,150,200,0.6)',
 
-        edge:           'rgba(167,139,250,0.5)',
-        edgeGlow:       'rgba(167,139,250,0.15)',
+        edge: 'rgba(167,139,250,0.5)',
+        edgeGlow: 'rgba(167,139,250,0.15)',
 
-        frozen:         'rgba(10,10,26,0.35)',
+        frozen: 'rgba(10,10,26,0.35)',
 
-        submitBg:       'linear-gradient(135deg,#6c63ff,#a78bfa)',
+        submitBg: 'linear-gradient(135deg,#6c63ff,#a78bfa)',
     };
 
     const R = AtlasLayout.getNodeRadius;   // function ref — call to get value
 
     // ── state ─────────────────────────────────────────────────────────────────
-    let _canvas  = null;
-    let _ctx     = null;
+    let _canvas = null;
+    let _ctx = null;
     let _hoverId = null;   // node id currently under the mouse
-    let _dpr     = 1;
+    let _dpr = 1;
 
     // Camera / pan offset (in logical CSS pixels)
     let _camX = 0;
@@ -50,15 +50,15 @@ const AtlasRenderer = (() => {
     // ── init ─────────────────────────────────────────────────────────────────
     function init(canvas) {
         _canvas = canvas;
-        _ctx    = canvas.getContext('2d');
-        _dpr    = window.devicePixelRatio || 1;
+        _ctx = canvas.getContext('2d');
+        _dpr = window.devicePixelRatio || 1;
         _resize();
         window.addEventListener('resize', _resize);
     }
 
     function _resize() {
         const rect = _canvas.getBoundingClientRect();
-        _canvas.width  = rect.width  * _dpr;
+        _canvas.width = rect.width * _dpr;
         _canvas.height = rect.height * _dpr;
         _ctx.scale(_dpr, _dpr);
         AtlasLayout.compute(_canvas);
@@ -70,12 +70,12 @@ const AtlasRenderer = (() => {
 
     // ── camera API (used by Input for panning) ────────────────────────────────
     function setCamera(x, y) { _camX = x; _camY = y; }
-    function getCamera()     { return { x: _camX, y: _camY }; }
+    function getCamera() { return { x: _camX, y: _camY }; }
 
     // ── main render ───────────────────────────────────────────────────────────
     function render() {
         if (!_ctx) return;
-        const w = _canvas.width  / _dpr;
+        const w = _canvas.width / _dpr;
         const h = _canvas.height / _dpr;
 
         _ctx.clearRect(0, 0, w, h);
@@ -117,7 +117,7 @@ const AtlasRenderer = (() => {
         if (!child) return;
 
         const px = parentNode.x, py = parentNode.y;
-        const cx = child.x,      cy = child.y;
+        const cx = child.x, cy = child.y;
 
         // glow pass
         _ctx.save();
@@ -125,8 +125,8 @@ const AtlasRenderer = (() => {
         _ctx.moveTo(px, py);
         _ctx.lineTo(cx, cy);
         _ctx.strokeStyle = C.edgeGlow;
-        _ctx.lineWidth   = 8;
-        _ctx.lineCap     = 'round';
+        _ctx.lineWidth = 8;
+        _ctx.lineCap = 'round';
         _ctx.stroke();
 
         // crisp line
@@ -134,14 +134,14 @@ const AtlasRenderer = (() => {
         _ctx.moveTo(px, py);
         _ctx.lineTo(cx, cy);
         _ctx.strokeStyle = C.edge;
-        _ctx.lineWidth   = 1.5;
+        _ctx.lineWidth = 1.5;
         _ctx.stroke();
         _ctx.restore();
     }
 
     // ── nodes ────────────────────────────────────────────────────────────────
     function _drawNode(node) {
-        const r        = R();
+        const r = R();
         const isHovered = node.id === _hoverId && !AtlasState.isFrozen();
         const { x, y } = node;
 
@@ -150,7 +150,7 @@ const AtlasRenderer = (() => {
         if (node.isActive) {
             // glow ring
             _ctx.shadowColor = C.nodeStrokeActive;
-            _ctx.shadowBlur  = isHovered ? 24 : 14;
+            _ctx.shadowBlur = isHovered ? 24 : 14;
 
             // gradient fill
             const grad = _ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
@@ -164,21 +164,21 @@ const AtlasRenderer = (() => {
 
             // stroke
             _ctx.strokeStyle = isHovered ? C.nodeStrokeHover : C.nodeStrokeActive;
-            _ctx.lineWidth   = 2;
+            _ctx.lineWidth = 2;
             _ctx.stroke();
 
             // value label
-            _ctx.shadowBlur  = 0;
-            _ctx.fillStyle   = C.labelActive;
-            _ctx.font        = `bold ${Math.round(r * 0.7)}px 'Inter', sans-serif`;
-            _ctx.textAlign   = 'center';
+            _ctx.shadowBlur = 0;
+            _ctx.fillStyle = C.labelActive;
+            _ctx.font = `bold ${Math.round(r * 0.7)}px 'Inter', sans-serif`;
+            _ctx.textAlign = 'center';
             _ctx.textBaseline = 'middle';
             _ctx.fillText(String(node.value), x, y);
 
         } else {
             // dimmed / inactive
             _ctx.shadowColor = isHovered ? C.nodeStrokeHover : 'transparent';
-            _ctx.shadowBlur  = isHovered ? 16 : 0;
+            _ctx.shadowBlur = isHovered ? 16 : 0;
 
             _ctx.fillStyle = C.nodeDimmed;
             _ctx.beginPath();
@@ -186,18 +186,18 @@ const AtlasRenderer = (() => {
             _ctx.fill();
 
             _ctx.strokeStyle = isHovered ? C.nodeStrokeHover : C.nodeStrokeDimmed;
-            _ctx.lineWidth   = 1.5;
+            _ctx.lineWidth = 1.5;
             _ctx.setLineDash([4, 4]);
             _ctx.stroke();
             _ctx.setLineDash([]);
 
             // "+" hint
-            _ctx.shadowBlur   = 0;
-            _ctx.fillStyle    = isHovered
+            _ctx.shadowBlur = 0;
+            _ctx.fillStyle = isHovered
                 ? 'rgba(240,171,252,0.85)'
                 : C.labelPlus;
-            _ctx.font         = `${Math.round(r * 0.8)}px 'Inter', sans-serif`;
-            _ctx.textAlign    = 'center';
+            _ctx.font = `${Math.round(r * 0.8)}px 'Inter', sans-serif`;
+            _ctx.textAlign = 'center';
             _ctx.textBaseline = 'middle';
             _ctx.fillText('+', x, y);
         }
