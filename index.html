@@ -27,7 +27,7 @@
                 <div class="atlas-controls">
 
                     <!-- Algorithm selector -->
-                    <div class="atlas-algo-selector">
+                    <div class="atlas-algo-selector" style="display: none;">
                         <label for="atlas-algo-select" class="atlas-algo-label">Algorithm</label>
                         <div class="atlas-select-wrapper">
                             <select id="atlas-algo-select">
@@ -44,7 +44,10 @@
                         </div>
                     </div>
 
-                    <button id="atlas-submit-btn">Run &amp; Submit</button>
+                    <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                        <button id="atlas-build-btn" style="display: none; padding: 0.35rem 1rem; font-size: 0.75rem;">Build Tree</button>
+                        <button id="atlas-submit-btn">Submit Tree</button>
+                    </div>
                 </div>
             </div>
 

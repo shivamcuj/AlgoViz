@@ -6,8 +6,8 @@
  * Colour palette:
  *   Inactive (dimmed) node  — dark background, muted stroke, low opacity label
  *   Active node             — accent gradient fill, crisp white text
+ *   Selected node           — bright pulsing highlight ring
  *   Edge                    — subtle glowing line
- *   Frozen overlay          — whole canvas gets a subtle vignette
  */
 
 const AtlasRenderer = (() => {
@@ -23,14 +23,15 @@ const AtlasRenderer = (() => {
         nodeStrokeDimmed: '#2e3260',
         nodeStrokeHover: '#f0abfc',
 
+        nodeStrokeSelected: '#38bdf8',         // highlight for selected node
+        nodeGlowSelected: 'rgba(56,189,248,0.6)',
+
         labelActive: '#ffffff',
         labelDimmed: 'rgba(120,130,180,0.45)',
         labelPlus: 'rgba(140,150,200,0.6)',
 
         edge: 'rgba(167,139,250,0.5)',
         edgeGlow: 'rgba(167,139,250,0.15)',
-
-        frozen: 'rgba(10,10,26,0.35)',
 
         submitBg: 'linear-gradient(135deg,#6c63ff,#a78bfa)',
     };
@@ -47,6 +48,10 @@ const AtlasRenderer = (() => {
     let _camX = 0;
     let _camY = 0;
 
+    // Pulse animation state
+    let _pulsePhase = 0;
+    let _pulseRAF = null;
+
     // ── init ─────────────────────────────────────────────────────────────────
     function init(canvas) {
         _canvas = canvas;
@@ -54,6 +59,7 @@ const AtlasRenderer = (() => {
         _dpr = window.devicePixelRatio || 1;
         _resize();
         window.addEventListener('resize', _resize);
+        _startPulse();
     }
 
     function _resize() {
@@ -72,6 +78,20 @@ const AtlasRenderer = (() => {
     function setCamera(x, y) { _camX = x; _camY = y; }
     function getCamera() { return { x: _camX, y: _camY }; }
 
+    // ── pulse animation loop ──────────────────────────────────────────────────
+    function _startPulse() {
+        function tick() {
+            _pulsePhase = (performance.now() / 800) % (Math.PI * 2);
+            // Only re-render if there's a selected node to animate
+            const sel = AtlasInternalState.getSelection();
+            if (sel.nodeId !== null) {
+                render();
+            }
+            _pulseRAF = requestAnimationFrame(tick);
+        }
+        _pulseRAF = requestAnimationFrame(tick);
+    }
+
     // ── main render ───────────────────────────────────────────────────────────
     function render() {
         if (!_ctx) return;
@@ -80,6 +100,9 @@ const AtlasRenderer = (() => {
 
         _ctx.clearRect(0, 0, w, h);
         _drawBackground(w, h);
+
+        const mode = AtlasInternalState.getMode();
+        const selectedNodeId = AtlasInternalState.getSelection().nodeId;
 
         // ── apply camera transform for everything in world space ──────────────
         _ctx.save();
@@ -95,12 +118,9 @@ const AtlasRenderer = (() => {
         });
 
         // draw nodes
-        nodes.forEach(node => _drawNode(node));
+        nodes.forEach(node => _drawNode(node, mode, selectedNodeId));
 
         _ctx.restore();  // end camera transform
-
-        // frozen overlay drawn in screen space (no camera)
-        if (AtlasInternalState.isFrozen()) _drawFrozenOverlay(w, h);
     }
 
     // ── background ───────────────────────────────────────────────────────────
@@ -140,17 +160,39 @@ const AtlasRenderer = (() => {
     }
 
     // ── nodes ────────────────────────────────────────────────────────────────
-    function _drawNode(node) {
+    function _drawNode(node, mode, selectedNodeId) {
         const r = R();
-        const isHovered = node.id === _hoverId && !AtlasInternalState.isFrozen();
+        const isBuild = mode === 'BUILD';
+        const isSelecting = mode === 'SELECTING';
+        const isHovered = node.id === _hoverId;
+        const isSelected = node.id === selectedNodeId;
         const { x, y } = node;
 
         _ctx.save();
 
         if (node.isActive) {
-            // glow ring
-            _ctx.shadowColor = C.nodeStrokeActive;
-            _ctx.shadowBlur = isHovered ? 24 : 14;
+            // ── selected highlight ring ──────────────────────────────────────
+            if (isSelected) {
+                const pulseIntensity = 18 + Math.sin(_pulsePhase) * 8;
+                _ctx.shadowColor = C.nodeGlowSelected;
+                _ctx.shadowBlur = pulseIntensity;
+
+                _ctx.beginPath();
+                _ctx.arc(x, y, r + 4, 0, Math.PI * 2);
+                _ctx.strokeStyle = C.nodeStrokeSelected;
+                _ctx.lineWidth = 3;
+                _ctx.stroke();
+
+                // reset shadow for node body
+                _ctx.shadowColor = 'transparent';
+                _ctx.shadowBlur = 0;
+            }
+
+            // glow ring (only when not selected — selected has its own ring)
+            if (!isSelected) {
+                _ctx.shadowColor = C.nodeStrokeActive;
+                _ctx.shadowBlur = isHovered ? 24 : 14;
+            }
 
             // gradient fill
             const grad = _ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
@@ -163,7 +205,13 @@ const AtlasRenderer = (() => {
             _ctx.fill();
 
             // stroke
-            _ctx.strokeStyle = isHovered ? C.nodeStrokeHover : C.nodeStrokeActive;
+            if (isSelected) {
+                _ctx.strokeStyle = C.nodeStrokeSelected;
+            } else if (isHovered) {
+                _ctx.strokeStyle = C.nodeStrokeHover;
+            } else {
+                _ctx.strokeStyle = C.nodeStrokeActive;
+            }
             _ctx.lineWidth = 2;
             _ctx.stroke();
 
@@ -176,42 +224,43 @@ const AtlasRenderer = (() => {
             _ctx.fillText(String(node.value), x, y);
 
         } else {
-            // dimmed / inactive
-            _ctx.shadowColor = isHovered ? C.nodeStrokeHover : 'transparent';
-            _ctx.shadowBlur = isHovered ? 16 : 0;
+            // ── dimmed / inactive ────────────────────────────────────────────
+            // In SELECTING mode, fade inactive nodes so user focuses on active ones
+            if (isSelecting) {
+                _ctx.globalAlpha = 0.3;
+            }
+
+            const hoverShow = isHovered && isBuild;
+            _ctx.shadowColor = hoverShow ? C.nodeStrokeHover : 'transparent';
+            _ctx.shadowBlur = hoverShow ? 16 : 0;
 
             _ctx.fillStyle = C.nodeDimmed;
             _ctx.beginPath();
             _ctx.arc(x, y, r, 0, Math.PI * 2);
             _ctx.fill();
 
-            _ctx.strokeStyle = isHovered ? C.nodeStrokeHover : C.nodeStrokeDimmed;
+            _ctx.strokeStyle = hoverShow ? C.nodeStrokeHover : C.nodeStrokeDimmed;
             _ctx.lineWidth = 1.5;
             _ctx.setLineDash([4, 4]);
             _ctx.stroke();
             _ctx.setLineDash([]);
 
-            // "+" hint
-            _ctx.shadowBlur = 0;
-            _ctx.fillStyle = isHovered
-                ? 'rgba(240,171,252,0.85)'
-                : C.labelPlus;
-            _ctx.font = `${Math.round(r * 0.8)}px 'Inter', sans-serif`;
-            _ctx.textAlign = 'center';
-            _ctx.textBaseline = 'middle';
-            _ctx.fillText('+', x, y);
+            // "+" hint — only in BUILD mode
+            if (isBuild) {
+                _ctx.shadowBlur = 0;
+                _ctx.fillStyle = hoverShow
+                    ? 'rgba(240,171,252,0.85)'
+                    : C.labelPlus;
+                _ctx.font = `${Math.round(r * 0.8)}px 'Inter', sans-serif`;
+                _ctx.textAlign = 'center';
+                _ctx.textBaseline = 'middle';
+                _ctx.fillText('+', x, y);
+            }
+
+            _ctx.globalAlpha = 1;
         }
 
         _ctx.restore();
-    }
-
-    // ── frozen vignette ──────────────────────────────────────────────────────
-    function _drawFrozenOverlay(w, h) {
-        const grad = _ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.85);
-        grad.addColorStop(0, 'transparent');
-        grad.addColorStop(1, C.frozen);
-        _ctx.fillStyle = grad;
-        _ctx.fillRect(0, 0, w, h);
     }
 
     // ── coordinate helpers (used by Input) ───────────────────────────────────

@@ -174,7 +174,8 @@ body {
 }
 
 /* ── Submit button ─────────────────────────────────────────── */
-#atlas-submit-btn {
+#atlas-submit-btn,
+#atlas-build-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -192,17 +193,21 @@ body {
     white-space: nowrap;
 }
 
-#atlas-submit-btn:hover:not(:disabled) {
+#atlas-submit-btn:hover:not(:disabled),
+#atlas-build-btn:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 6px 22px rgba(108,99,255,0.55);
 }
 
-#atlas-submit-btn:active:not(:disabled) {
+#atlas-submit-btn:active:not(:disabled),
+#atlas-build-btn:active:not(:disabled) {
     transform: translateY(0);
 }
 
 #atlas-submit-btn:disabled,
-#atlas-submit-btn.submitted {
+#atlas-build-btn:disabled,
+#atlas-submit-btn.submitted,
+#atlas-build-btn.submitted {
     opacity: 0.55;
     cursor: not-allowed;
     transform: none;
@@ -342,4 +347,98 @@ body {
     40%      { transform: translateX(5px); }
     60%      { transform: translateX(-4px); }
     80%      { transform: translateX(4px); }
+}
+
+@keyframes atlasHighlightPulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(56,189,248,0.4); }
+    50%      { box-shadow: 0 0 24px rgba(56,189,248,0.7); }
+}
+
+/* ── Action menu (replaces algo-selector content in MENU mode) ── */
+.atlas-action-menu {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: nowrap;
+}
+
+.atlas-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.32rem 0.7rem;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.05);
+    color: var(--clr-text);
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.18s, background 0.18s, color 0.18s, transform 0.12s, box-shadow 0.18s;
+}
+
+.atlas-action-btn:hover {
+    border-color: var(--clr-accent-hi);
+    background: rgba(167,139,250,0.12);
+    transform: translateY(-1px);
+}
+
+.atlas-action-btn:active {
+    transform: translateY(0);
+}
+
+.atlas-action-btn.active {
+    border-color: var(--clr-accent);
+    background: linear-gradient(135deg, rgba(108,99,255,0.2), rgba(167,139,250,0.15));
+    color: var(--clr-accent-hi);
+    box-shadow: 0 0 10px rgba(108,99,255,0.3);
+}
+
+.atlas-action-icon {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+/* ── Back button (traversal submenu) ──────────────────────────── */
+.atlas-back-btn {
+    border-color: rgba(167,139,250,0.3);
+    color: var(--clr-muted);
+    font-size: 0.68rem;
+    padding: 0.28rem 0.55rem;
+}
+
+.atlas-back-btn:hover {
+    color: var(--clr-text);
+    border-color: var(--clr-accent-hi);
+}
+
+/* ── Clear Tree button ──────────────────────────────────────── */
+#atlas-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.42rem 1.1rem;
+    border: 1px solid rgba(248,113,113,0.35);
+    border-radius: var(--radius-md);
+    background: rgba(248,113,113,0.08);
+    color: #f87171;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.18s, border-color 0.18s, transform 0.12s, box-shadow 0.18s;
+}
+
+#atlas-clear-btn:hover {
+    background: rgba(248,113,113,0.18);
+    border-color: rgba(248,113,113,0.65);
+    box-shadow: 0 4px 16px rgba(248,113,113,0.2);
+    transform: translateY(-1px);
+}
+
+#atlas-clear-btn:active {
+    transform: translateY(0);
 }

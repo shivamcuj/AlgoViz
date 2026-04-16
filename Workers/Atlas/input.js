@@ -1,10 +1,13 @@
 /**
  * ATLAS — Input Handler
- * Manages all user interaction:
- *   • Mouse move → hover effect
- *   • Click on dimmed node → open value prompt overlay
- *   • Overlay submit → activate node, expand tree
- *   • Submit Tree button → freeze & serialize
+ * Manages all user interaction across mode transitions:
+ *
+ *   BUILD      — click dimmed node → open value prompt, build tree
+ *   MENU       — action menu displayed, tree editing disabled
+ *   SELECTING  — click active node → highlight + store selection
+ *   READY      — submit button re-enabled to confirm selection
+ *
+ * Canvas panning (right-click drag) and hover work in ALL modes.
  */
 
 const AtlasInput = (() => {
@@ -12,7 +15,7 @@ const AtlasInput = (() => {
     let _canvas = null;
     let _overlay = null;   // the floating input DOM element
     let _pendingNodeId = null;
-    let _onSubmit = null;  // callback(serialized)
+    let _onSubmit = null;  // callback({ snapshot, selection })
 
     // ── panning state ──────────────────────────────────────────────────────────
     let _isPanning = false;
@@ -21,10 +24,39 @@ const AtlasInput = (() => {
     let _camOriginX = 0;   // camera offset when pan started
     let _camOriginY = 0;
 
+    // ── DOM references ─────────────────────────────────────────────────────────
+    let _submitBtn = null;
+    let _buildBtn = null;
+    let _algoSelector = null;
+    let _controlsBar = null;   // the .atlas-controls wrapper
+    let _clearTreeBtn = null;  // injected dynamically in BUILD mode
+
+    // ── action definitions ─────────────────────────────────────────────────────
+    const ACTIONS = [
+        { key: 'insert',    label: 'Insert',    icon: '＋' },
+        { key: 'delete',    label: 'Delete',    icon: '✕' },
+        { key: 'search',    label: 'Search',    icon: '⌕' },
+        { key: 'traversal', label: 'Traversal', icon: '↻' },
+    ];
+
+    const TRAVERSALS = [
+        { key: 'bfs',           label: 'BFS — Level Order' },
+        { key: 'dfs-inorder',   label: 'DFS — In-order' },
+        { key: 'dfs-preorder',  label: 'DFS — Pre-order' },
+        { key: 'dfs-postorder', label: 'DFS — Post-order' },
+    ];
+
     // ── init ─────────────────────────────────────────────────────────────────
     function init(canvas, onSubmitCallback) {
         _canvas = canvas;
         _onSubmit = onSubmitCallback;
+
+        _submitBtn = document.getElementById('atlas-submit-btn');
+        _buildBtn = document.getElementById('atlas-build-btn');
+        _algoSelector = document.querySelector('.atlas-algo-selector');
+        _controlsBar = document.querySelector('.atlas-controls');
+
+        _buildBtn?.addEventListener('click', _handleBuildClick);
 
         _buildOverlay();
 
@@ -35,8 +67,7 @@ const AtlasInput = (() => {
         canvas.addEventListener('mouseleave', _onMouseLeave);
         canvas.addEventListener('contextmenu', e => e.preventDefault());  // suppress browser menu
 
-        document.getElementById('atlas-submit-btn')
-            ?.addEventListener('click', _onSubmitTree);
+        _submitBtn?.addEventListener('click', _onSubmitBtn);
     }
 
     // ── overlay DOM ─────────────────────────────────────────────────────────
@@ -105,11 +136,25 @@ const AtlasInput = (() => {
             return;   // don't update hover while panning
         }
 
-        if (AtlasInternalState.isFrozen()) return;
+        const mode = AtlasInternalState.getMode();
         const pt = AtlasRenderer.eventToCanvas(e);
         const node = AtlasRenderer.hitTest(pt.x, pt.y);
-        AtlasRenderer.setHoveredNode(node ? node.id : null);
-        _canvas.style.cursor = node ? 'pointer' : 'default';
+
+        if (mode === 'BUILD') {
+            // Hover on any node (active or inactive)
+            AtlasRenderer.setHoveredNode(node ? node.id : null);
+            _canvas.style.cursor = node ? 'pointer' : 'default';
+        } else if (mode === 'SELECTING') {
+            // Only hover on active nodes
+            const hoverTarget = (node && node.isActive) ? node.id : null;
+            AtlasRenderer.setHoveredNode(hoverTarget);
+            _canvas.style.cursor = hoverTarget ? 'pointer' : 'default';
+        } else {
+            // MENU, READY — show hover for visual feedback but no pointer
+            AtlasRenderer.setHoveredNode(node ? node.id : null);
+            _canvas.style.cursor = 'default';
+        }
+
         AtlasRenderer.render();
     }
 
@@ -126,13 +171,26 @@ const AtlasInput = (() => {
     function _onClick(e) {
         if (_isPanning) return;            // ignore accidental clicks during pan
         if (e.button !== 0) return;        // left-click only
-        if (AtlasInternalState.isFrozen()) return;
+
+        const mode = AtlasInternalState.getMode();
         const pt = AtlasRenderer.eventToCanvas(e);
         const node = AtlasRenderer.hitTest(pt.x, pt.y);
-        if (!node || node.isActive) return;
 
-        _pendingNodeId = node.id;
-        _openOverlay(e.clientX, e.clientY);
+        if (mode === 'BUILD') {
+            // Current behavior: click inactive node → open overlay
+            if (!node || node.isActive) return;
+            _pendingNodeId = node.id;
+            _openOverlay(e.clientX, e.clientY);
+
+        } else if (mode === 'SELECTING') {
+            // Click active node → select it → transition to READY
+            if (!node || !node.isActive) return;
+            AtlasInternalState.setSelectedNode(node.id);
+            AtlasInternalState.setMode('READY');
+            _updateControlsForMode('READY');
+            AtlasRenderer.render();
+        }
+        // MENU, READY — canvas clicks are no-ops
     }
 
     // ── overlay open/close ───────────────────────────────────────────────────
@@ -184,44 +242,294 @@ const AtlasInput = (() => {
         AtlasRenderer.render();
     }
 
-    // ── submit tree ──────────────────────────────────────────────────────────
-    function _onSubmitTree() {
-        const serialized = AtlasInternalState.getSnapshot();
-        const algoSelect = document.getElementById('atlas-algo-select');
-        const algoValue = algoSelect ? algoSelect.value : 'bfs';
-        const algoLabels = {
-            'bfs': 'BFS — Level Order',
-            'dfs-inorder': 'DFS — In-order',
-            'dfs-preorder': 'DFS — Pre-order',
-            'dfs-postorder': 'DFS — Post-order',
-        };
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ── Build Button ──────────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+    function _handleBuildClick() {
+        if (!_controlsBar) return;
 
-        // visual freeze feedback
+        // Hide everything in the controls bar
+        _controlsBar.innerHTML = '';
+
+        // Inject a single Clear Tree button
+        _clearTreeBtn = document.createElement('button');
+        _clearTreeBtn.id = 'atlas-clear-btn';
+        _clearTreeBtn.textContent = 'Clear Tree';
+        _clearTreeBtn.addEventListener('click', _handleClearTree);
+        _controlsBar.appendChild(_clearTreeBtn);
+
+        AtlasInternalState.clearSelection();
+        AtlasInternalState.setMode('BUILD');
+        AtlasRenderer.render();
+        console.log('%c[ATLAS] Mode → BUILD (edit)', 'color:#38bdf8;font-weight:bold');
+    }
+
+    /** Clear Tree: reset all nodes, restore original BUILD controls. */
+    function _handleClearTree() {
+        // Reset the entire tree back to a single dimmed root
+        AtlasInternalState.init();
+        AtlasLayout.compute(_canvas);
+
+        // Rebuild the original controls bar content
+        _restoreBuildControls();
+
+        AtlasRenderer.render();
+        console.log('%c[ATLAS] Tree Cleared → BUILD', 'color:#f87171;font-weight:bold');
+    }
+
+    /** Rebuild the original .atlas-controls DOM (algo-selector + submit btn wrapper). */
+    function _restoreBuildControls() {
+        if (!_controlsBar) return;
+        _controlsBar.innerHTML = '';
+
+        // Re-create algo selector (hidden by default)
+        const algoDiv = document.createElement('div');
+        algoDiv.className = 'atlas-algo-selector';
+        algoDiv.style.display = 'none';
+        _controlsBar.appendChild(algoDiv);
+        _algoSelector = algoDiv;
+
+        // Re-create button wrapper
+        const btnWrap = document.createElement('div');
+        btnWrap.style.cssText = 'display:flex;flex-direction:column;gap:0.4rem;';
+
+        _buildBtn = document.createElement('button');
+        _buildBtn.id = 'atlas-build-btn';
+        _buildBtn.style.display = 'none';
+        _buildBtn.textContent = 'Build Tree';
+        _buildBtn.addEventListener('click', _handleBuildClick);
+        btnWrap.appendChild(_buildBtn);
+
+        _submitBtn = document.createElement('button');
+        _submitBtn.id = 'atlas-submit-btn';
+        _submitBtn.textContent = 'Submit Tree';
+        _submitBtn.addEventListener('click', _onSubmitBtn);
+        btnWrap.appendChild(_submitBtn);
+
+        _controlsBar.appendChild(btnWrap);
+
+        // Reset button state for BUILD mode
+        _updateControlsForMode('BUILD');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ── Submit Button — Mode-aware ────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+    function _onSubmitBtn() {
+        const mode = AtlasInternalState.getMode();
+
+        if (mode === 'BUILD') {
+            _handleBuildSubmit();
+        } else if (mode === 'READY') {
+            _handleReadySubmit();
+        }
+        // MENU, SELECTING — button is disabled, no-op
+    }
+
+    /** First submit: freeze tree, show action menu. */
+    function _handleBuildSubmit() {
+        // Validate: at least one active node
+        const activeCount = AtlasInternalState.getAllNodes().filter(n => n.isActive).length;
+        if (activeCount === 0) return;
+
+        AtlasInternalState.setMode('MENU');
+        _showMenu();
+        _updateControlsForMode('MENU');
         AtlasRenderer.render();
 
-        // fire user callback
-        if (typeof _onSubmit === 'function') _onSubmit(serialized);
+        console.log('%c[ATLAS] Mode → MENU', 'color:#38bdf8;font-weight:bold');
+    }
 
-        // ── Console output ────────────────────────────────────────────────────
-        console.group('%c[ATLAS] Tree Submitted', 'color:#a78bfa;font-weight:bold');
-        console.log('Algorithm:', algoLabels[algoValue] ?? algoValue);
-        console.log('Root ID:', serialized.rootId);
-        console.log('Nodes:', serialized.nodes);
+    /** Second submit: dispatch selection to solver, return to MENU. */
+    function _handleReadySubmit() {
+        const payload = Bus.getAtlas();
+
+        // Console output
+        console.group('%c[ATLAS] Selection Submitted', 'color:#a78bfa;font-weight:bold');
+        console.log('Action:', payload.selection.action);
+        console.log('Method:', payload.selection.method);
+        console.log('Node ID:', payload.selection.nodeId);
+        console.log('Root ID:', payload.snapshot.rootId);
+        console.log('Nodes:', payload.snapshot.nodes);
         console.groupEnd();
 
-        // expose on window for external algorithm workers
-        window.AtlasTreeOutput = serialized;
+        // Expose on window for external algorithm workers
+        window.AtlasTreeOutput = payload;
 
-        // ── Update controls state ─────────────────────────────────────────────
-        const btn = document.getElementById('atlas-submit-btn');
-        if (btn) {
-            btn.textContent = `✓ ${algoLabels[algoValue]?.split('—')[0].trim() ?? 'Done'}`;
-            btn.disabled = true;
-            btn.classList.add('submitted');
+        // Fire user callback
+        if (typeof _onSubmit === 'function') _onSubmit(payload);
+
+        // Return to MENU — selection (action, method, nodeId) persists intact
+        // until a new action cycle explicitly overwrites it.
+        AtlasInternalState.setMode('MENU');
+        _showMenu();
+        _updateControlsForMode('MENU');
+        
+        if (_buildBtn) _buildBtn.style.display = 'inline-flex';
+        
+        AtlasRenderer.render();
+
+        console.log('%c[ATLAS] Mode → MENU (cycle complete)', 'color:#38bdf8;font-weight:bold');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ── Action Menu (replaces algo-selector content) ──────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+    function _showMenu() {
+        if (!_algoSelector) return;
+        
+        _algoSelector.style.display = 'flex'; // show the menu now that we are in MENU mode
+
+        _algoSelector.innerHTML = '';
+        _algoSelector.classList.add('atlas-action-menu');
+
+        const label = document.createElement('span');
+        label.className = 'atlas-algo-label';
+        label.textContent = 'Action';
+        _algoSelector.appendChild(label);
+
+        ACTIONS.forEach(action => {
+            const btn = document.createElement('button');
+            btn.className = 'atlas-action-btn';
+            btn.dataset.action = action.key;
+            btn.innerHTML = `<span class="atlas-action-icon">${action.icon}</span>${action.label}`;
+            btn.addEventListener('click', () => _onActionSelected(action.key));
+            _algoSelector.appendChild(btn);
+        });
+    }
+
+    function _onActionSelected(actionKey) {
+        if (actionKey === 'traversal') {
+            _showTraversalSubmenu();
+            return;
+        } else if (actionKey === 'search') {
+            _showSearchSubmenu();
+            return;
         }
-        if (algoSelect) algoSelect.disabled = true;
+
+        AtlasInternalState.setSelection({ action: actionKey, method: null });
+        AtlasInternalState.setMode('SELECTING');
+        _updateControlsForMode('SELECTING');
+        _highlightActiveAction(actionKey);
+        AtlasRenderer.render();
+
+        console.log(`%c[ATLAS] Mode → SELECTING (action: ${actionKey})`, 'color:#38bdf8;font-weight:bold');
+    }
+
+    // ── Search Submenu ────────────────────────────────────────────────────────
+    function _showSearchSubmenu() {
+        if (!_algoSelector) return;
+
+        _algoSelector.innerHTML = '';
+
+        const backBtn = document.createElement('button');
+        backBtn.className = 'atlas-action-btn atlas-back-btn';
+        backBtn.innerHTML = '← Back';
+        backBtn.addEventListener('click', () => {
+            _showMenu();
+        });
+        _algoSelector.appendChild(backBtn);
+
+        const label = document.createElement('span');
+        label.className = 'atlas-algo-label';
+        label.textContent = 'Search Method';
+        _algoSelector.appendChild(label);
+
+        TRAVERSALS.forEach(trav => {
+            const btn = document.createElement('button');
+            btn.className = 'atlas-action-btn';
+            btn.dataset.method = trav.key;
+            btn.textContent = trav.label;
+            btn.addEventListener('click', () => {
+                AtlasInternalState.setSelection({ action: 'search', method: trav.key });
+                AtlasInternalState.setMode('SELECTING');
+                _updateControlsForMode('SELECTING');
+                _highlightActiveAction(trav.key);
+                AtlasRenderer.render();
+
+                console.log(`%c[ATLAS] Mode → SELECTING (search method: ${trav.key})`, 'color:#38bdf8;font-weight:bold');
+            });
+            _algoSelector.appendChild(btn);
+        });
+    }
+
+    // ── Traversal Submenu ─────────────────────────────────────────────────────
+    function _showTraversalSubmenu() {
+        if (!_algoSelector) return;
+
+        _algoSelector.innerHTML = '';
+
+        const backBtn = document.createElement('button');
+        backBtn.className = 'atlas-action-btn atlas-back-btn';
+        backBtn.innerHTML = '← Back';
+        backBtn.addEventListener('click', () => {
+            _showMenu();
+        });
+        _algoSelector.appendChild(backBtn);
+
+        const label = document.createElement('span');
+        label.className = 'atlas-algo-label';
+        label.textContent = 'Traversal';
+        _algoSelector.appendChild(label);
+
+        TRAVERSALS.forEach(trav => {
+            const btn = document.createElement('button');
+            btn.className = 'atlas-action-btn';
+            btn.dataset.method = trav.key;
+            btn.textContent = trav.label;
+            btn.addEventListener('click', () => {
+                AtlasInternalState.setSelection({ action: 'traversal', method: trav.key });
+                AtlasInternalState.setMode('SELECTING');
+                _updateControlsForMode('SELECTING');
+                _highlightActiveAction(trav.key);
+                AtlasRenderer.render();
+
+                console.log(`%c[ATLAS] Mode → SELECTING (traversal: ${trav.key})`, 'color:#38bdf8;font-weight:bold');
+            });
+            _algoSelector.appendChild(btn);
+        });
+    }
+
+    // ── Highlight active action in menu ───────────────────────────────────────
+    function _highlightActiveAction(key) {
+        if (!_algoSelector) return;
+        _algoSelector.querySelectorAll('.atlas-action-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.action === key || btn.dataset.method === key);
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ── Controls state management ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+    function _updateControlsForMode(mode) {
+        if (!_submitBtn) return;
+
+        switch (mode) {
+            case 'BUILD':
+                _submitBtn.textContent = 'Submit Tree';
+                _submitBtn.disabled = false;
+                _submitBtn.classList.remove('submitted');
+                break;
+
+            case 'MENU':
+                _submitBtn.textContent = 'Select an action…';
+                _submitBtn.disabled = true;
+                _submitBtn.classList.add('submitted');
+                break;
+
+            case 'SELECTING':
+                _submitBtn.textContent = 'Click a node…';
+                _submitBtn.disabled = true;
+                _submitBtn.classList.add('submitted');
+                break;
+
+            case 'READY':
+                _submitBtn.textContent = 'Confirm Selection';
+                _submitBtn.disabled = false;
+                _submitBtn.classList.remove('submitted');
+                break;
+        }
     }
 
     return { init };
 })();
-

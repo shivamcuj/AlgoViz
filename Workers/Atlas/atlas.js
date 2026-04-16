@@ -27,10 +27,11 @@
         AtlasRenderer.render();
 
         // 5. Wire up input handling
-        AtlasInput.init(canvas, function onTreeSubmitted(output) {
+        AtlasInput.init(canvas, function onSelectionSubmitted(payload) {
+            // payload = { snapshot, selection }
             // Emit to the global event bus if present
             if (window.Bus && typeof window.Bus.emit === 'function') {
-                window.Bus.emit('atlas:tree-submitted', output);
+                window.Bus.emit('atlas:selection-submitted', payload);
             }
         });
 
