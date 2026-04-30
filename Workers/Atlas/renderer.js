@@ -26,6 +26,9 @@ const AtlasRenderer = (() => {
         nodeStrokeSelected: '#38bdf8',         // highlight for selected node
         nodeGlowSelected: 'rgba(56,189,248,0.6)',
 
+        nodeStrokeAnimated: '#fbbf24',          // amber ring during traversal animation
+        nodeGlowAnimated:   'rgba(251,191,36,0.65)',
+
         labelActive: '#ffffff',
         labelDimmed: 'rgba(120,130,180,0.45)',
         labelPlus: 'rgba(140,150,200,0.6)',
@@ -78,13 +81,13 @@ const AtlasRenderer = (() => {
     function setCamera(x, y) { _camX = x; _camY = y; }
     function getCamera() { return { x: _camX, y: _camY }; }
 
-    // ── pulse animation loop ──────────────────────────────────────────────────
+    // ── pulse animation loop (also drives ANIMATION mode) ────────────────────
     function _startPulse() {
         function tick() {
             _pulsePhase = (performance.now() / 800) % (Math.PI * 2);
-            // Only re-render if there's a selected node to animate
-            const sel = AtlasInternalState.getSelection();
-            if (sel.nodeId !== null) {
+            const sel  = AtlasInternalState.getSelection();
+            const anim = AtlasInternalState.getAnimatedNode();
+            if (sel.nodeId !== null || anim !== null) {
                 render();
             }
             _pulseRAF = requestAnimationFrame(tick);
@@ -101,10 +104,11 @@ const AtlasRenderer = (() => {
         _ctx.clearRect(0, 0, w, h);
         _drawBackground(w, h);
 
-        const mode = AtlasInternalState.getMode();
+        const mode           = AtlasInternalState.getMode();
         const selectedNodeId = AtlasInternalState.getSelection().nodeId;
+        const animatedNodeId = AtlasInternalState.getAnimatedNode();
 
-        // ── apply camera transform for everything in world space ──────────────
+        // ── apply camera transform for everything in world space ────────────────────
         _ctx.save();
         _ctx.translate(_camX, _camY);
 
@@ -118,7 +122,7 @@ const AtlasRenderer = (() => {
         });
 
         // draw nodes
-        nodes.forEach(node => _drawNode(node, mode, selectedNodeId));
+        nodes.forEach(node => _drawNode(node, mode, selectedNodeId, animatedNodeId));
 
         _ctx.restore();  // end camera transform
     }
@@ -160,17 +164,34 @@ const AtlasRenderer = (() => {
     }
 
     // ── nodes ────────────────────────────────────────────────────────────────
-    function _drawNode(node, mode, selectedNodeId) {
+    function _drawNode(node, mode, selectedNodeId, animatedNodeId) {
         const r = R();
-        const isBuild = mode === 'BUILD';
+        const isBuild     = mode === 'BUILD';
         const isSelecting = mode === 'SELECTING';
-        const isHovered = node.id === _hoverId;
-        const isSelected = node.id === selectedNodeId;
+        const isHovered   = node.id === _hoverId;
+        const isSelected  = node.id === selectedNodeId;
+        const isAnimated  = node.id === animatedNodeId;   // currently stepped on during traversal
         const { x, y } = node;
 
         _ctx.save();
 
         if (node.isActive) {
+            // ── animated (traversal step) highlight ring ───────────────────────────
+            if (isAnimated) {
+                const pulse = 20 + Math.sin(_pulsePhase) * 8;
+                _ctx.shadowColor = C.nodeGlowAnimated;
+                _ctx.shadowBlur  = pulse;
+
+                _ctx.beginPath();
+                _ctx.arc(x, y, r + 6, 0, Math.PI * 2);
+                _ctx.strokeStyle = C.nodeStrokeAnimated;
+                _ctx.lineWidth   = 3.5;
+                _ctx.stroke();
+
+                _ctx.shadowColor = 'transparent';
+                _ctx.shadowBlur  = 0;
+            }
+
             // ── selected highlight ring ──────────────────────────────────────
             if (isSelected) {
                 const pulseIntensity = 18 + Math.sin(_pulsePhase) * 8;

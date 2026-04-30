@@ -190,7 +190,7 @@ const AtlasInput = (() => {
             _updateControlsForMode('READY');
             AtlasRenderer.render();
         }
-        // MENU, READY — canvas clicks are no-ops
+        // MENU, READY, ANIMATION — canvas clicks are no-ops
     }
 
     // ── overlay open/close ───────────────────────────────────────────────────
@@ -340,7 +340,7 @@ const AtlasInput = (() => {
         console.log('%c[ATLAS] Mode → MENU', 'color:#38bdf8;font-weight:bold');
     }
 
-    /** Second submit: dispatch selection to solver, return to MENU. */
+    /** Second submit: dispatch selection to solver; run traversal animation if applicable. */
     function _handleReadySubmit() {
         const payload = Bus.getAtlas();
 
@@ -356,21 +356,129 @@ const AtlasInput = (() => {
         // Expose on window for external algorithm workers
         window.AtlasTreeOutput = payload;
 
-        // Fire user callback
+        // Fire user callback (bus emit etc.)
         if (typeof _onSubmit === 'function') _onSubmit(payload);
 
-        // Return to MENU — selection (action, method, nodeId) persists intact
-        // until a new action cycle explicitly overwrites it.
+        // ── Traversal animation branch ────────────────────────────────────────
+        const { action, method } = payload.selection;
+        const DFS_METHODS = ['dfs-inorder', 'dfs-preorder', 'dfs-postorder'];
+
+        if (action === 'traversal' && DFS_METHODS.includes(method)) {
+            _runTraversalAnimation(payload.snapshot, method);
+            return;   // animation handles its own mode transitions
+        }
+
+        // ── Default: return to MENU ───────────────────────────────────────────
         AtlasInternalState.setMode('MENU');
         _showMenu();
         _updateControlsForMode('MENU');
-        
-        if (_buildBtn) _buildBtn.style.display = 'inline-flex';
-        
-        AtlasRenderer.render();
 
+        if (_buildBtn) _buildBtn.style.display = 'inline-flex';
+
+        AtlasRenderer.render();
         console.log('%c[ATLAS] Mode → MENU (cycle complete)', 'color:#38bdf8;font-weight:bold');
     }
+
+    // ── Traversal animation driver ────────────────────────────────────────────
+    /**
+     * Enter ANIMATION mode, step through each node id in the traversal result
+     * with a delay, highlight it on the canvas, then restore BUILD mode.
+     *
+     * @param {{ rootId: string, nodes: Array }} snapshot
+     * @param {string} method  — 'dfs-inorder' | 'dfs-preorder' | 'dfs-postorder'
+     */
+    function _runTraversalAnimation(snapshot, method) {
+        // Pick the correct solver based on method
+        const SOLVERS = {
+            'dfs-inorder':   typeof DFSInOrder   !== 'undefined' ? DFSInOrder   : null,
+            'dfs-preorder':  typeof DFSPreOrder  !== 'undefined' ? DFSPreOrder  : null,
+            'dfs-postorder': typeof DFSPostOrder !== 'undefined' ? DFSPostOrder : null,
+        };
+        const solver = SOLVERS[method];
+
+        if (!solver) {
+            console.warn(`[ATLAS] No solver registered for method "${method}". Aborting animation.`);
+            _finishAnimation();
+            return;
+        }
+
+        // Run the solver to obtain the ordered node-ID array
+        const nodeIds = solver.runOn(snapshot);   // string[]
+
+        if (!nodeIds || nodeIds.length === 0) {
+            console.warn('[ATLAS] Traversal produced no nodes — skipping animation.');
+            _finishAnimation();
+            return;
+        }
+
+        // ── Enter ANIMATION mode — freezes canvas interaction ────────────────
+        AtlasInternalState.setMode('ANIMATION');
+        AtlasInternalState.clearAnimatedNode();
+
+        // Update submit button to reflect locked state
+        if (_submitBtn) {
+            _submitBtn.textContent = 'Animating…';
+            _submitBtn.disabled = true;
+            _submitBtn.classList.add('submitted');
+        }
+
+        console.log('%c[ATLAS] Mode → ANIMATION', 'color:#fbbf24;font-weight:bold');
+
+        const STEP_DELAY_MS  = 700;   // time each node stays highlighted (ms)
+        const CLEAR_DELAY_MS = 300;   // brief gap between steps
+
+        let step = 0;
+
+        function _nextStep() {
+            if (step >= nodeIds.length) {
+                // ── All nodes visited — wrap up ──────────────────────────────
+                AtlasInternalState.clearAnimatedNode();
+                AtlasRenderer.render();
+
+                // Short pause so the last node's highlight is visible before reset
+                setTimeout(_finishAnimation, 500);
+                return;
+            }
+
+            const currentId = nodeIds[step];
+            step++;
+
+            // Light up the current node
+            AtlasInternalState.setAnimatedNode(currentId);
+            AtlasRenderer.render();
+
+            const node = AtlasInternalState.getNode(currentId);
+            console.log(
+                `%c[DFS-INORDER] Step ${step}/${nodeIds.length} — node ${currentId} (value: ${node?.value ?? '?'})`,
+                'color:#fbbf24'
+            );
+
+            // Hold highlight, then clear briefly before the next step
+            setTimeout(() => {
+                AtlasInternalState.clearAnimatedNode();
+                AtlasRenderer.render();
+                setTimeout(_nextStep, CLEAR_DELAY_MS);
+            }, STEP_DELAY_MS);
+        }
+
+        // Kick off the chain
+        _nextStep();
+    }
+
+    /** Called once the animation sequence ends — restores BUILD mode. */
+    function _finishAnimation() {
+        AtlasInternalState.clearAnimatedNode();
+        AtlasInternalState.clearSelection();
+        AtlasInternalState.setMode('BUILD');
+
+        // Rebuild the full controls bar in BUILD state
+        _restoreBuildControls();
+
+        AtlasRenderer.render();
+        console.log('%c[ATLAS] Animation complete → BUILD', 'color:#38bdf8;font-weight:bold');
+    }
+
+
 
     // ═══════════════════════════════════════════════════════════════════════════
     // ── Action Menu (replaces algo-selector content) ──────────────────────────
@@ -479,12 +587,12 @@ const AtlasInput = (() => {
             btn.textContent = trav.label;
             btn.addEventListener('click', () => {
                 AtlasInternalState.setSelection({ action: 'traversal', method: trav.key });
-                AtlasInternalState.setMode('SELECTING');
-                _updateControlsForMode('SELECTING');
+                AtlasInternalState.setMode('READY');
+                _updateControlsForMode('READY');
                 _highlightActiveAction(trav.key);
                 AtlasRenderer.render();
 
-                console.log(`%c[ATLAS] Mode → SELECTING (traversal: ${trav.key})`, 'color:#38bdf8;font-weight:bold');
+                console.log(`%c[ATLAS] Mode → READY (traversal: ${trav.key})`, 'color:#38bdf8;font-weight:bold');
             });
             _algoSelector.appendChild(btn);
         });

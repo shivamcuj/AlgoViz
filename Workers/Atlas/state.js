@@ -2,18 +2,21 @@
  * ATLAS — State Manager
  * Owns the tree data model. All mutations go through here.
  *
- * Mode FSM: BUILD → MENU → SELECTING → READY → MENU
+ * Mode FSM: BUILD → MENU → SELECTING → READY → ANIMATION → BUILD
  */
 
 const AtlasInternalState = (() => {
     // ── valid modes ──────────────────────────────────────────────────────────
-    const MODES = ['BUILD', 'MENU', 'SELECTING', 'READY'];
+    const MODES = ['BUILD', 'MENU', 'SELECTING', 'READY', 'ANIMATION'];
 
     // ── internal store ──────────────────────────────────────────────────────
     let _nodes = {};          // id → node object
     let _root = null;        // id of root node
     let _nextId = 0;
     let _mode = 'BUILD';
+
+    // ── animation context ────────────────────────────────────────────────────
+    let _animatedNodeId = null;  // id of the node currently lit up during traversal
 
     // ── selection context (populated during MENU → SELECTING → READY) ─────
     let _selection = {
@@ -145,11 +148,17 @@ const AtlasInternalState = (() => {
         }),
     };
 
+    // ── animated-node API ────────────────────────────────────────────────────
+    function getAnimatedNode()        { return _animatedNodeId; }
+    function setAnimatedNode(id)      { _animatedNodeId = id; }
+    function clearAnimatedNode()      { _animatedNodeId = null; }
+
     return {
         init, activateNode,
         getNode, getAllNodes, getRootId,
         isFrozen, getSnapshot,
         getMode, setMode,
         getSelection, setSelection, clearSelection, setSelectedNode,
+        getAnimatedNode, setAnimatedNode, clearAnimatedNode,
     };
 })();
