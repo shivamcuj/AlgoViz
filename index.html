@@ -1,85 +1,89 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ALGOVIZ</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+    <link
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="AlgoViz — interactive binary tree builder and algorithm visualizer">
+  <body >
+    <div class="body">
 
-    <link rel="icon" type="image/x-icon" href="/Assets/images/AlgoVizLogo.ico">
-    <title>AlgoViz</title>
+     <div class="orbit"></div>
 
-    <!-- stylesheets -->
-    <link rel="stylesheet" href="Workers/Atlas/atlas.css">
-</head>
+     <div class="blob blob-blue"></div>
+     <div class="blob blob-red"></div>
+     <div class="blob blob-pink"></div>
+     <div class="blob blob-dark"></div>
 
-<body>
+     <div class="orbit"></div>
 
-    <div class="ui-container">
+     <header class="navbar">
+      
+      <div class="logo">Algoviz</div>
 
-        <div class="canvas-container">
+    
+      <nav>
+        
+        <a href="#">Overview</a>
+        <a href="#">Developers</a>
+        <a href="#">About</a>
+        
+      </nav>
+     </header>
 
-            <!-- canvas wrapper provides border + glow + absolute controls -->
-            <div class="canvas-wrapper">
-                <canvas id="atlas-canvas"></canvas>
+     <main class="hero">
+      <p class="tagline">
+        How algorithms quietly shape every decision behind the screen
+      </p>
 
-                <!-- bottom-right controls bar -->
-                <div class="atlas-controls">
+      <h1 style="font-family: Montserrat; font-weight: bold">ALGOVIZ</h1>
 
-                    <!-- Algorithm selector -->
-                    <div class="atlas-algo-selector" style="display: none;">
-                        <label for="atlas-algo-select" class="atlas-algo-label">Algorithm</label>
-                        <div class="atlas-select-wrapper">
-                            <select id="atlas-algo-select">
-                                <optgroup label="Breadth-First">
-                                    <option value="bfs">BFS — Level Order</option>
-                                </optgroup>
-                                <optgroup label="Depth-First">
-                                    <option value="dfs-inorder">DFS — In-order</option>
-                                    <option value="dfs-preorder">DFS — Pre-order</option>
-                                    <option value="dfs-postorder">DFS — Post-order</option>
-                                </optgroup>
-                            </select>
-                            <span class="atlas-select-arrow">▾</span>
-                        </div>
-                    </div>
+      <p class="description">
+        This website shows how computher think and how algorithms workk in a
+        simple and intractive way, making complex concepts easy to understand
+        for everyone.
+      </p>
 
-                    <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-                        <button id="atlas-build-btn" style="display: none; padding: 0.35rem 1rem; font-size: 0.75rem;">Build Tree</button>
-                        <button id="atlas-submit-btn">Submit Tree</button>
-                    </div>
-                </div>
-            </div>
+      <button class="cta-btn">Sign in</button>
+     </main>
+     </div>
+    <div>
+     
+    
+      <div class="glow-container">
+      <div class="view">
+      <div class="content">
+        
+        <h2>How Machine Makes Decision.</h2>
 
+      <!-- Floating cards -->
+      <div class="cards">
+        <div class="a1" onclick="window.location.href='tree.html'">
+          <img src="img/Leetcode 1361_ Validate Binary Tree Nodes (Medium).jpeg" /> BINARY TREE
         </div>
-
-        <div class="logger-container">
-            <div id="logger"></div>
-        </div>
-
+        <div class="a2">
+        <img src="https://picsum.photos/200?2" /></div>
+         <div class="a3">
+        <img src="https://picsum.photos/200?3" /></div>
+        <div class="a4">
+        <img src="https://picsum.photos/200?4" /></div>
+        <div class="a5">
+        <img src="https://picsum.photos/200?5" /></div>
+      </div>
+      </div>
+      </div>
     </div>
-
-
-    <!-- Atlas worker (load order matters) -->
-    <script src="Workers/Atlas/state.js"></script>
-    <script src="Workers/Atlas/layout.js"></script>
-    <script src="Workers/Atlas/renderer.js"></script>
-    <script src="Workers/Atlas/input.js"></script>
-    <script src="Workers/Atlas/atlas.js"></script>
-
-    <!-- Solver — Traversal algorithms -->
-    <script src="Workers/Solver/Traversal/dfs_inorder.js"></script>
-    <script src="Workers/Solver/Traversal/dfs_preorder.js"></script>
-    <script src="Workers/Solver/Traversal/dfs_postorder.js"></script>
-
-    <!-- other worker stubs -->
-
-    <script src="Workers/Solver/test.js"></script>
-
-    <!-- visual scripts -->
-    <script src="Visual/Logger/test.js"></script>
-    <script src="Visual/Echo/test.js"></script>
-
-</body>
-
+    </div>
+  </body>
 </html>
