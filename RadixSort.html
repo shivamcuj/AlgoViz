@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radix Sort Visualizer</title>
+    <style>
+        :root {
+            /* Default Dark Theme */
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            
+            /* Visualizer Colors - Dark Mode */
+            --bar-default: #64748b;
+            --bar-evaluating: #ef4444;  /* Red - Evaluating Current Digit */
+            --bar-bucket: #3b82f6;      /* Blue - Inside Bucket */
+            --bar-restoring: #f59e0b;   /* Orange - Moving back to array */
+            --bar-sorted: #22c55e;      /* Green - Sorted state */
+            --array-bg: rgba(255, 255, 255, 0.03);
+            --bucket-bg: rgba(0, 0, 0, 0.2);
+        }
+
+        body.light-mode {
+            /* Light Theme Overrides */
+            --bg-color: #f1f5f9;
+            --panel-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+
+            /* Visualizer Colors - Light Mode */
+            --bar-default: #94a3b8;
+            --bar-evaluating: #dc2626;
+            --bar-bucket: #2563eb;
+            --bar-restoring: #ea580c;
+            --bar-sorted: #16a34a;
+            --array-bg: rgba(0, 0, 0, 0.03);
+            --bucket-bg: rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header & Controls --- */
+        header {
+            padding: 0.8rem 1.5rem;
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            flex-shrink: 0;
+        }
+
+        .header-title-area {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        h1 { font-size: 1.2rem; font-weight: 600; }
+
+        #themeToggleBtn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            font-size: 1rem;
+            padding: 0.4rem;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #themeToggleBtn:hover { background-color: var(--border-color); }
+
+        .controls { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+        .control-group { display: flex; flex-direction: column; gap: 0.3rem; }
+        .control-group label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+        input[type="range"] { accent-color: var(--accent); cursor: pointer; width: 110px; }
+
+        button.btn-primary {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: opacity 0.2s, background-color 0.2s;
+        }
+
+        button.btn-primary:hover:not(:disabled) { background-color: var(--accent-hover); }
+        button.btn-primary:disabled { background-color: var(--text-muted); cursor: not-allowed; opacity: 0.6; }
+
+        /* --- Main Content Area --- */
+        .main-content {
+            display: flex;
+            flex-direction: row;
+            flex: 1;
+            min-height: 0;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .main-content { flex-direction: column; overflow-y: auto; }
+            body { overflow: auto; }
+        }
+
+        /* --- Visualization Panel --- */
+        .visualization-panel {
+            flex: 1;
+            min-width: 0;
+            background-color: var(--panel-bg);
+            border-radius: 10px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .array-wrapper {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--array-bg);
+            border-radius: 8px;
+            padding: 0.8rem;
+            border: 1px solid rgba(150, 150, 150, 0.05);
+        }
+
+        .array-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .array-container {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        /* --- Buckets Grid System --- */
+        .buckets-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 0.5rem;
+            min-height: 0;
+        }
+
+        .bucket-col {
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bucket-bg);
+            border-radius: 6px;
+            border: 1px dashed var(--border-color);
+            overflow: hidden;
+        }
+
+        .bucket-label {
+            text-align: center;
+            font-weight: bold;
+            padding: 4px 0;
+            border-bottom: 1px dashed var(--border-color);
+            background: var(--panel-bg);
+            color: var(--text-main);
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .bucket-items {
+            flex: 1;
+            display: flex;
+            flex-direction: column-reverse; /* Stacks bars from bottom to top */
+            align-items: center;
+            gap: 2px;
+            padding: 4px;
+            overflow-y: hidden; 
+        }
+
+        /* --- Bars Styling --- */
+        .bar {
+            flex: 1;
+            background-color: var(--bar-default);
+            border-radius: 4px 4px 0 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 5px;
+            transition: height 0.25s ease, background-color 0.2s ease, opacity 0.3s ease;
+            width: 100%;
+        }
+
+        .bucket-item-bar {
+            width: 100%;
+            background-color: var(--bar-bucket);
+            border-radius: 2px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 15px; /* Minimum visible size in bucket */
+            transition: all 0.2s;
+        }
+
+        .bar.state-empty { height: 0% !important; background-color: transparent !important; border: none; }
+        .bar span, .bucket-item-bar span {
+            color: white; font-size: 0.75rem; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.5); pointer-events: none;
+        }
+
+        /* Dense layout handling */
+        .array-container[data-dense="true"] { gap: 2px; }
+        .array-container[data-dense="true"] .bar { border-radius: 2px 2px 0 0; }
+        .array-container[data-dense="true"] .bar span { display: none; }
+        .buckets-grid[data-dense="true"] .bucket-item-bar span { display: none; }
+        .buckets-grid[data-dense="true"] .bucket-item-bar { min-height: 4px; }
+
+        /* Semantic Colors */
+        .bar.state-default { background-color: var(--bar-default); }
+        .bar.state-evaluating { background-color: var(--bar-evaluating); }
+        .bar.state-restoring { background-color: var(--bar-restoring); }
+        .bar.state-sorted { background-color: var(--bar-sorted); }
+
+        /* --- Logger Panel --- */
+        .logger-panel {
+            width: 340px;
+            flex-shrink: 0;
+            background-color: var(--panel-bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (max-width: 900px) { .logger-panel { width: 100%; min-height: 250px; } }
+
+        .logger-header {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .logger-content {
+            padding: 0.8rem;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.8rem;
+        }
+
+        .log-entry {
+            padding: 0.5rem;
+            border-radius: 6px;
+            background-color: var(--bg-color);
+            animation: fadeIn 0.2s ease;
+            line-height: 1.4;
+            border-left: 4px solid var(--text-muted);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .log-info { border-left-color: var(--accent); }
+        .log-evaluating { border-left-color: var(--bar-evaluating); }
+        .log-bucket { border-left-color: var(--bar-bucket); }
+        .log-restoring { border-left-color: var(--bar-restoring); }
+        .log-success { border-left-color: var(--bar-sorted); background-color: rgba(34, 197, 94, 0.05); }
+
+        /* --- Legend --- */
+        .legend {
+            display: flex;
+            gap: 1.2rem;
+            padding: 0.8rem 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            background-color: var(--panel-bg);
+            border-top: 1px solid var(--border-color);
+            font-size: 0.8rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+        .color-box { width: 12px; height: 12px; border-radius: 3px; }
+    </style>
+</head>
+<body class="light-mode">
+
+    <header>
+        <div class="header-title-area">
+            <h1>Radix Sort Visualizer</h1>
+            <button id="themeToggleBtn" title="Toggle Theme">🌙</button>
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <label for="sizeSlider">Array Size: <span id="sizeValue">15</span></label>
+                <input type="range" id="sizeSlider" min="5" max="60" value="15">
+            </div>
+            <div class="control-group">
+                <label for="delayInput">Speed (Delay): <span id="delayValue">0.50</span>s</label>
+                <input type="range" id="delayInput" min="0.01" max="1.50" step="0.01" value="0.5">
+            </div>
+            <button class="btn-primary" id="generateBtn">New Array</button>
+            <button class="btn-primary" id="sortBtn">Start Sort</button>
+            <button class="btn-primary" id="pauseBtn" disabled style="background-color: var(--text-muted);">Pause</button>
+            <button class="btn-primary" id="stepBtn">Step</button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <!-- Visualization Panel -->
+        <div class="visualization-panel">
+            <div class="array-wrapper">
+                <div class="array-label">Main Array</div>
+                <div class="array-container" id="mainBarsContainer"></div>
+            </div>
+            <div class="array-wrapper">
+                <div class="array-label">Buckets (0-9) - Digit Segregation</div>
+                <div class="buckets-grid" id="bucketsGridContainer">
+                    <!-- Buckets will be generated here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Logger Panel -->
+        <div class="logger-panel">
+            <div class="logger-header">
+                <span>Execution Log</span>
+                <button class="btn-primary" id="clearLogBtn" style="padding: 0.2rem 0.6rem; font-size: 0.7rem;">Clear</button>
+            </div>
+            <div class="logger-content" id="loggerContent">
+                <div class="log-entry log-info">Ready. Click 'Start Sort' to visualize Radix Sort (LSD).</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-default);"></div> Unsorted</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-evaluating);"></div> Evaluating Digit</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-bucket);"></div> In Bucket</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-restoring);"></div> Restoring to Array</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-sorted);"></div> Sorted</div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const mainBarsContainer = document.getElementById('mainBarsContainer');
+        const bucketsGridContainer = document.getElementById('bucketsGridContainer');
+        const sizeSlider = document.getElementById('sizeSlider');
+        const sizeValue = document.getElementById('sizeValue');
+        const delayInput = document.getElementById('delayInput');
+        const delayValue = document.getElementById('delayValue');
+        const generateBtn = document.getElementById('generateBtn');
+        const sortBtn = document.getElementById('sortBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const loggerContent = document.getElementById('loggerContent');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+        // State variables
+        let array = [];      
+        let bars = [];       
+        let delayTime = 500;
+        let isSorting = false;
+        let isPaused = false;
+        let pausePromise = null;
+        let resolvePause = null;
+        let sleepResolve = null;
+        let sleepTimeout = null;
+        let currentSortId = 0; 
+
+        // Initialize App
+        function init() {
+            createBucketsUI();
+            updateDelay();
+            generateArray();
+            
+            sizeSlider.addEventListener('input', () => {
+                sizeValue.innerText = sizeSlider.value;
+                generateArray();
+            });
+            delayInput.addEventListener('input', updateDelay);
+            generateBtn.addEventListener('click', generateArray);
+            themeToggleBtn.addEventListener('click', toggleTheme);
+            pauseBtn.addEventListener('click', handlePauseResume);
+            stepBtn.addEventListener('click', handleStep);
+            
+            sortBtn.addEventListener('click', () => {
+                if (!isSorting) {
+                    isPaused = false;
+                    startSortingProcess();
+                }
+            });
+            
+            clearLogBtn.addEventListener('click', clearLog);
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            themeToggleBtn.innerText = isLight ? '🌙' : '☀️';
+        }
+
+        function handlePauseResume() {
+            isPaused = !isPaused;
+            toggleControls(isSorting);
+            
+            if (isPaused) {
+                if (sleepResolve) {
+                    clearTimeout(sleepTimeout);
+                    sleepResolve();
+                    sleepResolve = null;
+                }
+                logMessage('Visualization paused.', 'info');
+            } else {
+                if (resolvePause) {
+                    resolvePause();
+                    pausePromise = null;
+                    resolvePause = null;
+                }
+                logMessage('Visualization resumed.', 'info');
+            }
+        }
+
+        function handleStep() {
+            if (!isSorting) {
+                isPaused = true; 
+                startSortingProcess();
+            } else if (isPaused && resolvePause) {
+                resolvePause();
+                pausePromise = null;
+                resolvePause = null;
+            }
+        }
+
+        function createBucketsUI() {
+            bucketsGridContainer.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const bucketCol = document.createElement('div');
+                bucketCol.className = 'bucket-col';
+                
+                const label = document.createElement('div');
+                label.className = 'bucket-label';
+                label.innerText = `${i}`;
+                
+                const itemsContainer = document.createElement('div');
+                itemsContainer.className = 'bucket-items';
+                itemsContainer.id = `bucket-items-${i}`;
+                
+                bucketCol.appendChild(label);
+                bucketCol.appendChild(itemsContainer);
+                bucketsGridContainer.appendChild(bucketCol);
+            }
+        }
+
+        function clearBucketsContent() {
+            for (let i = 0; i < 10; i++) {
+                const itemsContainer = document.getElementById(`bucket-items-${i}`);
+                if (itemsContainer) itemsContainer.innerHTML = '';
+            }
+        }
+
+        async function startSortingProcess() {
+            if (isSorting) return;
+            
+            currentSortId++;
+            isSorting = true;
+            toggleControls(true);
+            clearLog();
+            logMessage(`Started Radix Sort on array of size ${array.length}`, 'info');
+            
+            await radixSort(currentSortId);
+            
+            if (isSorting) { 
+                logMessage('Array is completely sorted!', 'success');
+                markAllSorted();
+            }
+            
+            isSorting = false;
+            isPaused = false;
+            toggleControls(false);
+        }
+
+        // Maximum value constraint for visualization heights (10-999)
+        const MAX_VAL = 999; 
+
+        function setBarValue(barEl, val) {
+            if (val === 0) {
+                barEl.style.height = '0%';
+                barEl.className = 'bar state-empty';
+                barEl.innerHTML = '';
+            } else {
+                barEl.style.height = `${Math.max((val / MAX_VAL) * 100, 2)}%`;
+                barEl.className = 'bar state-default';
+                if (sizeSlider.value <= 30) {
+                    barEl.innerHTML = `<span>${val}</span>`;
+                } else {
+                    barEl.innerHTML = '';
+                }
+            }
+        }
+
+        function setBarStateClass(barEl, stateClass) {
+            if (!barEl.classList.contains('state-empty')) {
+                barEl.className = `bar ${stateClass}`;
+                if (sizeSlider.value <= 30) {
+                    barEl.innerHTML = `<span>${barEl.innerText}</span>`;
+                }
+            }
+        }
+
+        function generateArray() {
+            if (isSorting) {
+                currentSortId++; 
+                isSorting = false;
+                if (isPaused) {
+                    isPaused = false;
+                    if (resolvePause) resolvePause();
+                    pausePromise = null;
+                    resolvePause = null;
+                }
+                toggleControls(false);
+                logMessage('Sorting cancelled. Generated new array.', 'info');
+            }
+
+            const size = parseInt(sizeSlider.value);
+            array = [];
+            bars = [];
+            mainBarsContainer.innerHTML = '';
+            clearBucketsContent();
+
+            const isDense = size > 30;
+            mainBarsContainer.setAttribute('data-dense', isDense);
+            bucketsGridContainer.setAttribute('data-dense', isDense);
+
+            for (let i = 0; i < size; i++) {
+                // Generate numbers between 10 and 999 for good Radix visualization
+                const val = Math.floor(Math.random() * 990) + 10;
+                array.push(val);
+
+                const bar = document.createElement('div');
+                mainBarsContainer.appendChild(bar);
+                bars.push(bar);
+                setBarValue(bar, val);
+            }
+        }
+
+        function updateDelay() {
+            const seconds = parseFloat(delayInput.value);
+            delayTime = seconds * 1000;
+            delayValue.innerText = seconds.toFixed(2);
+        }
+
+        async function sleep(ms) {
+            if (!isPaused) {
+                await new Promise(resolve => {
+                    sleepResolve = resolve;
+                    sleepTimeout = setTimeout(() => {
+                        sleepResolve = null;
+                        resolve();
+                    }, ms);
+                });
+            } else {
+                await new Promise(resolve => requestAnimationFrame(resolve));
+            }
+
+            if (isPaused) {
+                if (!pausePromise) {
+                    pausePromise = new Promise(resolve => { resolvePause = resolve; });
+                }
+                await pausePromise;
+            }
+        }
+
+        function toggleControls(disabled) {
+            sizeSlider.disabled = disabled;
+            generateBtn.disabled = disabled;
+            sortBtn.disabled = disabled;
+            pauseBtn.disabled = !disabled;
+            
+            if (!disabled) {
+                stepBtn.disabled = false;
+                stepBtn.style.backgroundColor = 'var(--accent)';
+                pauseBtn.style.backgroundColor = 'var(--text-muted)';
+                pauseBtn.innerText = 'Pause';
+            } else if (isPaused) {
+                stepBtn.disabled = false;
+                stepBtn.style.backgroundColor = 'var(--accent)';
+                pauseBtn.innerText = 'Resume';
+                pauseBtn.style.backgroundColor = 'var(--bar-restoring)';
+            } else {
+                stepBtn.disabled = true;
+                stepBtn.style.backgroundColor = 'var(--text-muted)';
+                pauseBtn.innerText = 'Pause';
+                pauseBtn.style.backgroundColor = 'var(--accent)';
+            }
+        }
+
+        function logMessage(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.classList.add('log-entry', `log-${type}`);
+            entry.innerHTML = message;
+            loggerContent.appendChild(entry);
+            loggerContent.scrollTop = loggerContent.scrollHeight;
+        }
+
+        function clearLog() { loggerContent.innerHTML = ''; }
+        function markAllSorted() { for (let i = 0; i < bars.length; i++) setBarStateClass(bars[i], 'state-sorted'); }
+
+        // --- Radix Sort Logic ---
+
+        async function radixSort(sortId) {
+            if (sortId !== currentSortId) return;
+
+            let maxNum = Math.max(...array);
+            let exp = 1;
+            let pass = 1;
+
+            const placeNames = { 1: "Ones", 10: "Tens", 100: "Hundreds", 1000: "Thousands" };
+
+            // Continue loop as long as maxNum has digits at the current exponent place
+            while (Math.floor(maxNum / exp) > 0) {
+                if (sortId !== currentSortId) return;
+
+                let placeStr = placeNames[exp] || (exp + "s");
+                logMessage(`<br><b>--- Pass ${pass}: Sorting by ${placeStr} place ---</b>`, 'info');
+
+                // 10 internal memory buckets holding the numerical values
+                let digitBuckets = Array.from({ length: 10 }, () => []);
+
+                // Phase 1: Distribution (Array -> Buckets)
+                for (let i = 0; i < array.length; i++) {
+                    if (sortId !== currentSortId) return;
+
+                    let val = array[i];
+                    let digit = Math.floor(val / exp) % 10;
+
+                    // Highlight main bar
+                    setBarStateClass(bars[i], 'state-evaluating');
+                    logMessage(`Reading ${val} -> Digit is <b>${digit}</b>. Moving to Bucket ${digit}.`, 'evaluating');
+                    await sleep(delayTime);
+
+                    // Logic: Add to our internal array
+                    digitBuckets[digit].push(val);
+
+                    // Visual: Remove from main array
+                    setBarValue(bars[i], 0);
+
+                    // Visual: Add to Bucket UI
+                    let bucketItems = document.getElementById(`bucket-items-${digit}`);
+                    let bBar = document.createElement('div');
+                    bBar.className = 'bucket-item-bar';
+                    bBar.style.height = `${Math.max((val / MAX_VAL) * 100, 10)}%`;
+                    if (sizeSlider.value <= 30) bBar.innerHTML = `<span>${val}</span>`;
+                    
+                    bucketItems.appendChild(bBar); // Appends to bottom conceptually because of column-reverse
+
+                    await sleep(delayTime / 2);
+                }
+
+                // Phase 2: Collection (Buckets -> Array)
+                logMessage(`Collecting elements back from buckets to main array.`, 'info');
+                let arrayIdx = 0;
+
+                for (let b = 0; b < 10; b++) {
+                    let bucketItems = document.getElementById(`bucket-items-${b}`);
+                    
+                    while (digitBuckets[b].length > 0) {
+                        if (sortId !== currentSortId) return;
+
+                        // Logic: extract value
+                        let val = digitBuckets[b].shift();
+                        array[arrayIdx] = val;
+
+                        // Visual: Remove from Bucket UI (remove the visually 'bottom' one which is firstChild due to column-reverse)
+                        if (bucketItems.firstChild) {
+                            bucketItems.removeChild(bucketItems.firstChild);
+                        }
+
+                        // Visual: Restore to main array
+                        setBarValue(bars[arrayIdx], val);
+                        setBarStateClass(bars[arrayIdx], 'state-restoring');
+                        logMessage(`Restored <b>${val}</b> from Bucket ${b} to Index ${arrayIdx}.`, 'restoring');
+                        
+                        arrayIdx++;
+                        await sleep(delayTime);
+                    }
+                }
+
+                // Reset colors after the pass
+                for (let i = 0; i < bars.length; i++) {
+                    if (sortId !== currentSortId) return;
+                    setBarStateClass(bars[i], 'state-default');
+                }
+
+                exp *= 10;
+                pass++;
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

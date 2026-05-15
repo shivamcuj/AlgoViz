@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merge Sort Visualizer</title>
+    <style>
+        :root {
+            /* Default Dark Theme */
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            
+            /* Visualizer Colors - Dark Mode */
+            --bar-default: #64748b;
+            --bar-left-half: #3b82f6;   /* Blue */
+            --bar-right-half: #f59e0b;  /* Orange */
+            --bar-comparing: #ef4444;   /* Red */
+            --bar-merged: #22c55e;      /* Green */
+            --array-bg: rgba(255, 255, 255, 0.03);
+        }
+
+        body.light-mode {
+            /* Light Theme Overrides */
+            --bg-color: #f1f5f9;
+            --panel-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+
+            /* Visualizer Colors - Light Mode */
+            --bar-default: #94a3b8;
+            --bar-left-half: #2563eb;
+            --bar-right-half: #ea580c; // this should be changed
+            --bar-comparing: #dc2626;
+            --bar-merged: #16a34a;
+            --array-bg: rgba(0, 0, 0, 0.03);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Enforce app-like no-scroll layout */
+        }
+
+        /* --- Header & Controls --- */
+        header {
+            padding: 0.8rem 1.5rem;
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            flex-shrink: 0; /* Never shrink the header */
+        }
+
+        .header-title-area {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        #themeToggleBtn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            font-size: 1rem;
+            padding: 0.4rem;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #themeToggleBtn:hover {
+            background-color: var(--border-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .control-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            accent-color: var(--accent);
+            cursor: pointer;
+            width: 110px;
+        }
+
+        button.btn-primary {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: opacity 0.2s, background-color 0.2s;
+        }
+
+        button.btn-primary:hover:not(:disabled) {
+            background-color: var(--accent-hover);
+        }
+
+        button.btn-primary:disabled {
+            background-color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        /* --- Main Content Area --- */
+        .main-content {
+            display: flex;
+            flex-direction: row;
+            flex: 1; /* Take up all remaining space */
+            min-height: 0; /* Crucial: Allows flex children to shrink below content size if needed */
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+            body { overflow: auto; }
+        }
+
+        /* --- Visualization Panel --- */
+        .visualization-panel {
+            flex: 1; /* Takes remaining width */
+            min-width: 0;
+            background-color: var(--panel-bg);
+            border-radius: 10px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .array-wrapper {
+            flex: 1;
+            min-height: 0; /* Crucial for equal distribution */
+            display: flex;
+            flex-direction: column;
+            background-color: var(--array-bg);
+            border-radius: 8px;
+            padding: 0.8rem;
+            border: 1px solid rgba(150, 150, 150, 0.05);
+        }
+
+        .array-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 0.8rem;
+            flex-shrink: 0; /* Don't shrink the text */
+        }
+
+        .array-container {
+            flex: 1; /* Fills remaining height in wrapper */
+            min-height: 0;
+            display: flex;
+            align-items: flex-end; /* Bars grow from bottom */
+            justify-content: center;
+            gap: 4px;
+        }
+
+        /* --- Bars Styling --- */
+        .bar {
+            flex: 1;
+            background-color: var(--bar-default);
+            border-radius: 4px 4px 0 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 5px;
+            transition: height 0.25s ease, background-color 0.2s ease, opacity 0.3s ease;
+        }
+
+        .bar.state-empty {
+            height: 0% !important;
+            background-color: transparent !important;
+            border: none;
+        }
+
+        .bar span {
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+
+        /* Dense layout handling */
+        .array-container[data-dense="true"] { gap: 2px; }
+        .array-container[data-dense="true"] .bar { border-radius: 2px 2px 0 0; }
+        .array-container[data-dense="true"] .bar span { display: none; }
+
+        /* Semantic Colors */
+        .bar.state-default { background-color: var(--bar-default); }
+        .bar.state-left-half { background-color: var(--bar-left-half); }
+        .bar.state-right-half { background-color: var(--bar-right-half); }
+        .bar.state-comparing { background-color: var(--bar-comparing); }
+        .bar.state-merged { background-color: var(--bar-merged); }
+
+        /* --- Logger Panel --- */
+        .logger-panel {
+            width: 340px; /* Fixed width on desktop */
+            flex-shrink: 0;
+            background-color: var(--panel-bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (max-width: 900px) {
+            .logger-panel { width: 100%; min-height: 250px; }
+        }
+
+        .logger-header {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .logger-content {
+            padding: 0.8rem;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.8rem;
+        }
+
+        .log-entry {
+            padding: 0.5rem;
+            border-radius: 6px;
+            background-color: var(--bg-color);
+            animation: fadeIn 0.2s ease;
+            line-height: 1.4;
+            border-left: 4px solid var(--text-muted);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .log-info { border-left-color: var(--accent); }
+        .log-divide { border-left-color: var(--bar-default); }
+        .log-aux { border-left-color: var(--bar-left-half); }
+        .log-compare { border-left-color: var(--bar-comparing); }
+        .log-merge { border-left-color: var(--bar-merged); }
+        .log-success { border-left-color: var(--bar-merged); background-color: rgba(34, 197, 94, 0.05); }
+
+        /* --- Legend --- */
+        .legend {
+            display: flex;
+            gap: 1.2rem;
+            padding: 0.8rem 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            background-color: var(--panel-bg);
+            border-top: 1px solid var(--border-color);
+            font-size: 0.8rem;
+            font-weight: 600;
+            flex-shrink: 0; /* Never shrink legend */
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .color-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="light-mode">
+
+    <header>
+        <div class="header-title-area">
+            <h1>Merge Sort Visualizer</h1>
+            <button id="themeToggleBtn" title="Toggle Theme">🌙</button>
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <label for="sizeSlider">Array Size: <span id="sizeValue">15</span></label>
+                <input type="range" id="sizeSlider" min="5" max="60" value="15">
+            </div>
+            <div class="control-group">
+                <label for="delayInput">Speed (Delay): <span id="delayValue">0.50</span>s</label>
+                <input type="range" id="delayInput" min="0.01" max="1.50" step="0.01" value="0.5">
+            </div>
+            <button class="btn-primary" id="generateBtn">New Array</button>
+            <button class="btn-primary" id="sortBtn">Start Sort</button>
+            <button class="btn-primary" id="pauseBtn" disabled style="background-color: var(--text-muted);">Pause</button>
+            <button class="btn-primary" id="stepBtn">Step</button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <!-- Visualization Panel -->
+        <div class="visualization-panel">
+            <div class="array-wrapper">
+                <div class="array-label">Main Array</div>
+                <div class="array-container" id="mainBarsContainer"></div>
+            </div>
+            <div class="array-wrapper">
+                <div class="array-label">Auxiliary Space (Divide & Merge)</div>
+                <div class="array-container" id="auxBarsContainer"></div>
+            </div>
+        </div>
+        
+        <!-- Logger Panel -->
+        <div class="logger-panel">
+            <div class="logger-header">
+                <span>Execution Log</span>
+                <button class="btn-primary" id="clearLogBtn" style="padding: 0.2rem 0.6rem; font-size: 0.7rem;">Clear</button>
+            </div>
+            <div class="logger-content" id="loggerContent">
+                <div class="log-entry log-info">Ready. Click 'Start Sort' to visualize the Divide and Conquer process.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-default);"></div> Unsorted</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-left-half);"></div> Left Sub-array</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-right-half);"></div> Right Sub-array</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-comparing);"></div> Comparing</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-merged);"></div> Merged / Sorted</div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const mainBarsContainer = document.getElementById('mainBarsContainer');
+        const auxBarsContainer = document.getElementById('auxBarsContainer');
+        const sizeSlider = document.getElementById('sizeSlider');
+        const sizeValue = document.getElementById('sizeValue');
+        const delayInput = document.getElementById('delayInput');
+        const delayValue = document.getElementById('delayValue');
+        const generateBtn = document.getElementById('generateBtn');
+        const sortBtn = document.getElementById('sortBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const loggerContent = document.getElementById('loggerContent');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+        // State variables
+        let array = [];      
+        let auxArray = [];   
+        let bars = [];       
+        let auxBars = [];    
+        let delayTime = 500;
+        let isSorting = false;
+        let isPaused = false;
+        let pausePromise = null;
+        let resolvePause = null;
+        let sleepResolve = null;
+        let sleepTimeout = null;
+        let currentSortId = 0; 
+
+        // Initialize
+        function init() {
+            updateDelay();
+            generateArray();
+            
+            sizeSlider.addEventListener('input', () => {
+                sizeValue.innerText = sizeSlider.value;
+                generateArray();
+            });
+            delayInput.addEventListener('input', updateDelay);
+            generateBtn.addEventListener('click', generateArray);
+            themeToggleBtn.addEventListener('click', toggleTheme);
+            pauseBtn.addEventListener('click', handlePauseResume);
+            stepBtn.addEventListener('click', handleStep);
+            
+            // Fix: Wrap startSortingProcess so it correctly disables paused state ONLY on normal starts
+            sortBtn.addEventListener('click', () => {
+                if (!isSorting) {
+                    isPaused = false;
+                    startSortingProcess();
+                }
+            });
+            
+            clearLogBtn.addEventListener('click', clearLog);
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            themeToggleBtn.innerText = isLight ? '🌙' : '☀️';
+        }
+
+        function handlePauseResume() {
+            isPaused = !isPaused;
+            toggleControls(isSorting);
+            
+            if (isPaused) {
+                if (sleepResolve) {
+                    clearTimeout(sleepTimeout);
+                    sleepResolve();
+                    sleepResolve = null;
+                }
+                logMessage('Visualization paused.', 'info');
+            } else {
+                if (resolvePause) {
+                    resolvePause();
+                    pausePromise = null;
+                    resolvePause = null;
+                }
+                logMessage('Visualization resumed.', 'info');
+            }
+        }
+
+        function handleStep() {
+            if (!isSorting) {
+                isPaused = true; // Ensure it stays paused when starting via Step button
+                startSortingProcess();
+            } else if (isPaused && resolvePause) {
+                resolvePause();
+                pausePromise = null;
+                resolvePause = null;
+            }
+        }
+
+        async function startSortingProcess() {
+            if (isSorting) return;
+            
+            currentSortId++;
+            isSorting = true;
+            toggleControls(true);
+            clearLog();
+            logMessage(`Started Merge Sort on array of size ${array.length}`, 'info');
+            
+            await mergeSort(0, array.length - 1, currentSortId);
+            
+            if (isSorting) { 
+                logMessage('Array is completely sorted! All sub-arrays merged.', 'success');
+                dimOutside(-1, -1); 
+                markAllSorted();
+            }
+            
+            isSorting = false;
+            isPaused = false;
+            toggleControls(false);
+        }
+
+        function setBarValue(barEl, val) {
+            if (val === 0) {
+                barEl.style.height = '0%';
+                barEl.className = 'bar state-empty';
+                barEl.innerHTML = '';
+            } else {
+                barEl.style.height = `${val}%`;
+                barEl.className = 'bar state-default';
+                if (sizeSlider.value <= 30) {
+                    barEl.innerHTML = `<span>${val}</span>`;
+                } else {
+                    barEl.innerHTML = '';
+                }
+            }
+        }
+
+        function setBarStateClass(barEl, stateClass) {
+            if (!barEl.classList.contains('state-empty')) {
+                barEl.className = `bar ${stateClass}`;
+                if (sizeSlider.value <= 30) {
+                    barEl.innerHTML = `<span>${barEl.innerText}</span>`;
+                }
+            }
+        }
+
+        function generateArray() {
+            if (isSorting) {
+                currentSortId++; 
+                isSorting = false;
+                if (isPaused) {
+                    isPaused = false;
+                    if (resolvePause) resolvePause();
+                    pausePromise = null;
+                    resolvePause = null;
+                }
+                toggleControls(false);
+                logMessage('Sorting cancelled. Generated new array.', 'info');
+            }
+
+            const size = parseInt(sizeSlider.value);
+            array = [];
+            auxArray = [];
+            mainBarsContainer.innerHTML = '';
+            auxBarsContainer.innerHTML = '';
+            bars = [];
+            auxBars = [];
+
+            const isDense = size > 30;
+            mainBarsContainer.setAttribute('data-dense', isDense);
+            auxBarsContainer.setAttribute('data-dense', isDense);
+
+            for (let i = 0; i < size; i++) {
+                const val = Math.floor(Math.random() * 90) + 10;
+                array.push(val);
+                auxArray.push(0); 
+
+                const bar = document.createElement('div');
+                mainBarsContainer.appendChild(bar);
+                bars.push(bar);
+                setBarValue(bar, val);
+
+                const auxBar = document.createElement('div');
+                auxBarsContainer.appendChild(auxBar);
+                auxBars.push(auxBar);
+                setBarValue(auxBar, 0); 
+            }
+        }
+
+        function updateDelay() {
+            const seconds = parseFloat(delayInput.value);
+            delayTime = seconds * 1000;
+            delayValue.innerText = seconds.toFixed(2);
+        }
+
+        async function sleep(ms) {
+            if (!isPaused) {
+                await new Promise(resolve => {
+                    sleepResolve = resolve;
+                    sleepTimeout = setTimeout(() => {
+                        sleepResolve = null;
+                        resolve();
+                    }, ms);
+                });
+            } else {
+                // Allows UI to update rendering frame specifically when stepping
+                await new Promise(resolve => requestAnimationFrame(resolve));
+            }
+
+            if (isPaused) {
+                if (!pausePromise) {
+                    pausePromise = new Promise(resolve => {
+                        resolvePause = resolve;
+                    });
+                }
+                await pausePromise;
+            }
+        }
+
+        function toggleControls(disabled) {
+            sizeSlider.disabled = disabled;
+            generateBtn.disabled = disabled;
+            sortBtn.disabled = disabled;
+            
+            pauseBtn.disabled = !disabled;
+            
+            if (!disabled) {
+                stepBtn.disabled = false;
+                stepBtn.style.backgroundColor = 'var(--accent)';
+                pauseBtn.style.backgroundColor = 'var(--text-muted)';
+                pauseBtn.innerText = 'Pause';
+            } else if (isPaused) {
+                stepBtn.disabled = false;
+                stepBtn.style.backgroundColor = 'var(--accent)';
+                pauseBtn.innerText = 'Resume';
+                pauseBtn.style.backgroundColor = 'var(--bar-right-half)';
+            } else {
+                stepBtn.disabled = true;
+                stepBtn.style.backgroundColor = 'var(--text-muted)';
+                pauseBtn.innerText = 'Pause';
+                pauseBtn.style.backgroundColor = 'var(--accent)';
+            }
+        }
+
+        function logMessage(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.classList.add('log-entry', `log-${type}`);
+            entry.innerHTML = message;
+            loggerContent.appendChild(entry);
+            // Auto scroll to bottom
+            loggerContent.scrollTop = loggerContent.scrollHeight;
+        }
+
+        function clearLog() {
+            loggerContent.innerHTML = '';
+        }
+
+        function markAllSorted() {
+            for (let i = 0; i < bars.length; i++) {
+                setBarStateClass(bars[i], 'state-merged');
+            }
+        }
+
+        function dimOutside(left, right) {
+            for (let i = 0; i < bars.length; i++) {
+                if (left === -1 || (i >= left && i <= right)) {
+                    bars[i].style.opacity = '1';
+                } else {
+                    bars[i].style.opacity = '0.15';
+                }
+            }
+        }
+
+        // --- Merge Sort Logic ---
+
+        async function merge(left, mid, right, sortId) {
+            if (sortId !== currentSortId) return;
+
+            logMessage(`<strong>Merging Phase:</strong> Preparing to merge sub-arrays [${left} to ${mid}] and [${mid + 1} to ${right}]`, 'info');
+            dimOutside(left, right);
+
+            logMessage(`Moving elements from index ${left} to ${right} into the Auxiliary Space to begin merging.`, 'aux');
+            for (let x = left; x <= right; x++) {
+                if (sortId !== currentSortId) return;
+                auxArray[x] = array[x];
+                array[x] = 0; 
+                
+                setBarValue(auxBars[x], auxArray[x]);
+                setBarValue(bars[x], 0);
+
+                if (x <= mid) {
+                    setBarStateClass(auxBars[x], 'state-left-half');
+                } else {
+                    setBarStateClass(auxBars[x], 'state-right-half');
+                }
+            }
+            await sleep(delayTime);
+
+            let i = left;      
+            let j = mid + 1;   
+            let k = left;      
+
+            while (i <= mid && j <= right) {
+                if (sortId !== currentSortId) return;
+
+                setBarStateClass(auxBars[i], 'state-comparing');
+                setBarStateClass(auxBars[j], 'state-comparing');
+                logMessage(`Comparing Left element: <b>${auxArray[i]}</b> with Right element: <b>${auxArray[j]}</b>`, 'compare');
+                await sleep(delayTime);
+
+                if (auxArray[i] <= auxArray[j]) {
+                    logMessage(`Left element <b>${auxArray[i]}</b> is smaller (or equal). Moving it into the main array at index ${k}.`, 'merge');
+                    array[k] = auxArray[i];
+                    setBarValue(bars[k], array[k]);
+                    setBarStateClass(bars[k], 'state-merged'); 
+                    setBarValue(auxBars[i], 0); 
+                    setBarStateClass(auxBars[j], 'state-right-half'); 
+                    i++;
+                } else {
+                    logMessage(`Right element <b>${auxArray[j]}</b> is smaller. Moving it into the main array at index ${k}.`, 'merge');
+                    array[k] = auxArray[j];
+                    setBarValue(bars[k], array[k]);
+                    setBarStateClass(bars[k], 'state-merged'); 
+                    setBarValue(auxBars[j], 0); 
+                    setBarStateClass(auxBars[i], 'state-left-half'); 
+                    j++;
+                }
+                k++;
+                await sleep(delayTime);
+            }
+
+            while (i <= mid) {
+                if (sortId !== currentSortId) return;
+                logMessage(`Right sub-array is exhausted. Moving remaining Left element <b>${auxArray[i]}</b> to index ${k}.`, 'merge');
+                array[k] = auxArray[i];
+                setBarValue(bars[k], array[k]);
+                setBarStateClass(bars[k], 'state-merged');
+                setBarValue(auxBars[i], 0);
+                i++;
+                k++;
+                await sleep(delayTime / 1.5);
+            }
+
+            while (j <= right) {
+                if (sortId !== currentSortId) return;
+                logMessage(`Left sub-array is exhausted. Moving remaining Right element <b>${auxArray[j]}</b> to index ${k}.`, 'merge');
+                array[k] = auxArray[j];
+                setBarValue(bars[k], array[k]);
+                setBarStateClass(bars[k], 'state-merged');
+                setBarValue(auxBars[j], 0);
+                j++;
+                k++;
+                await sleep(delayTime / 1.5);
+            }
+
+            for (let x = left; x <= right; x++) {
+                if (sortId !== currentSortId) return;
+                if (!(left === 0 && right === bars.length - 1)) {
+                    setBarStateClass(bars[x], 'state-default');
+                }
+            }
+        }
+
+        async function mergeSort(left, right, sortId) {
+            if (sortId !== currentSortId) return;
+            if (left >= right) return;
+
+            let mid = Math.floor((left + right) / 2);
+
+            logMessage(`<b>Dividing Array:</b> Splitting segment [${left} to ${right}] at midpoint ${mid} into [${left} to ${mid}] and [${mid + 1} to ${right}]`, 'divide');
+            dimOutside(left, right);
+            await sleep(delayTime);
+            
+            await mergeSort(left, mid, sortId);
+            if (sortId !== currentSortId) return;
+
+            await mergeSort(mid + 1, right, sortId);
+            if (sortId !== currentSortId) return;
+
+            await merge(left, mid, right, sortId);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
