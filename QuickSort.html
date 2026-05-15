@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Sort Visualizer</title>
+    <style>
+        :root {
+            /* Default Dark Theme */
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            
+            /* Visualizer Colors - Dark Mode */
+            --bar-default: #475569;
+            --track-default: rgba(255, 255, 255, 0.03);
+            
+            --bar-comparing: #3b82f6;
+            --track-comparing: rgba(59, 130, 246, 0.15);
+            
+            --bar-pivot: #f59e0b;
+            --track-pivot: rgba(245, 158, 11, 0.15);
+            
+            --bar-swapping: #ef4444;
+            --track-swapping: rgba(239, 68, 68, 0.15);
+            
+            --bar-sorted: #22c55e;
+            --track-sorted: rgba(34, 197, 94, 0.15);
+        }
+
+        body.light-mode {
+            /* Light Theme Overrides */
+            --bg-color: #f1f5f9;
+            --panel-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+
+            /* Visualizer Colors - Light Mode */
+            --bar-default: #d1d5db;
+            --track-default: #f8fafc;
+            
+            --bar-comparing: #2563eb;
+            --track-comparing: #e0e7ff;
+            
+            --bar-pivot: #f5a623;
+            --track-pivot: #fef3c7;
+            
+            --bar-swapping: #dc2626;
+            --track-swapping: #fee2e2;
+            
+            --bar-sorted: #166534;
+            --track-sorted: #dcfce7;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            background-color: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header-title-area {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        #themeToggleBtn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            font-size: 1.2rem;
+            padding: 0.4rem;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #themeToggleBtn:hover {
+            background-color: var(--border-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        input[type="range"] {
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        button.btn-primary {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button.btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        button.btn-primary:disabled {
+            background-color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            padding: 1.5rem;
+            gap: 1.5rem;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        @media (min-width: 1024px) {
+            .main-content {
+                flex-direction: row;
+            }
+        }
+
+        .visualization-panel {
+            flex: 2;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            min-height: 400px;
+        }
+
+        .bars-container {
+            display: flex;
+            align-items: flex-end;
+            width: 100%;
+            height: 100%;
+            gap: 8px;
+            padding: 0 10px;
+        }
+
+        .bars-container[data-dense="true"] {
+            gap: 2px;
+        }
+
+        /* New Bar Structure Styles */
+        .bar-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            gap: 8px;
+        }
+
+        .bar-track {
+            flex: 1;
+            width: 100%;
+            border-radius: 6px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            transition: background-color 0.2s;
+        }
+
+        .bar-fill {
+            width: 100%;
+            border-radius: 0 0 6px 6px;
+            transition: height 0.2s ease, background-color 0.2s;
+            position: relative;
+        }
+
+        .bar-value {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            z-index: 5;
+            transition: bottom 0.2s ease, color 0.2s;
+        }
+
+        .bar-badge {
+            position: absolute;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 12px;
+            border: 1.5px solid;
+            background: var(--panel-bg);
+            z-index: 10;
+            transform: translateX(-50%);
+            left: 50%;
+            display: none;
+            letter-spacing: 0.5px;
+            transition: bottom 0.2s ease;
+        }
+
+        .bar-index {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        /* Bar State Colors */
+        .state-default .bar-track { background-color: var(--track-default); }
+        .state-default .bar-fill { background-color: var(--bar-default); }
+
+        .state-comparing .bar-track { background-color: var(--track-comparing); }
+        .state-comparing .bar-fill { background-color: var(--bar-comparing); }
+        .state-comparing .bar-badge { color: var(--bar-comparing); border-color: var(--bar-comparing); }
+
+        .state-pivot .bar-track { background-color: var(--track-pivot); }
+        .state-pivot .bar-fill { background-color: var(--bar-pivot); }
+        .state-pivot .bar-badge { color: var(--bar-pivot); border-color: var(--bar-pivot); }
+
+        .state-swapping .bar-track { background-color: var(--track-swapping); }
+        .state-swapping .bar-fill { background-color: var(--bar-swapping); }
+        .state-swapping .bar-badge { color: var(--bar-swapping); border-color: var(--bar-swapping); }
+
+        .state-sorted .bar-track { background-color: var(--track-sorted); }
+        .state-sorted .bar-fill { background-color: var(--bar-sorted); }
+
+        /* Hide text in dense mode */
+        .bars-container[data-dense="true"] .bar-index,
+        .bars-container[data-dense="true"] .bar-value,
+        .bars-container[data-dense="true"] .bar-badge {
+            display: none !important;
+        }
+
+        .logger-panel {
+            flex: 1;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 300px;
+        }
+
+        .logger-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logger-content {
+            padding: 1rem 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            max-height: calc(100vh - 250px);
+        }
+
+        .log-entry {
+            padding: 0.5rem;
+            border-radius: 4px;
+            background-color: var(--track-default);
+            animation: fadeIn 0.3s ease;
+            line-height: 1.4;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Log Colors */
+        .log-info { border-left: 3px solid var(--accent); }
+        .log-pivot { border-left: 3px solid var(--bar-pivot); }
+        .log-compare { border-left: 3px solid var(--bar-comparing); }
+        .log-swap { border-left: 3px solid var(--bar-swapping); }
+        .log-success { border-left: 3px solid var(--bar-sorted); }
+
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            background-color: var(--panel-bg);
+            border-top: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .color-box {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="light-mode"> <!-- Set to light mode by default to match request -->
+
+    <header>
+        <div class="header-title-area">
+            <h1>Quick Sort Visualizer</h1>
+            <button id="themeToggleBtn" title="Toggle Theme">🌙</button>
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <label for="sizeSlider">Array Size: <span id="sizeValue">8</span></label>
+                <input type="range" id="sizeSlider" min="5" max="100" value="8">
+            </div>
+            <div class="control-group">
+                <label for="delayInput">Delay (Seconds): <span id="delayValue">0.50</span>s</label>
+                <input type="range" id="delayInput" min="0.01" max="3.00" step="0.01" value="0.5">
+            </div>
+            <button class="btn-primary" id="generateBtn">Generate Array</button>
+            <button class="btn-primary" id="sortBtn">Start Sort</button>
+            <button class="btn-primary" id="pauseBtn" disabled style="background-color: var(--text-muted);">Pause</button>
+            <button class="btn-primary" id="stepBtn">Step</button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="visualization-panel">
+            <div class="bars-container" id="barsContainer"></div>
+        </div>
+        
+        <div class="logger-panel">
+            <div class="logger-header">
+                <span>Execution Log</span>
+                <button class="btn-primary" id="clearLogBtn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Clear</button>
+            </div>
+            <div class="logger-content" id="loggerContent">
+                <!-- Logs will appear here -->
+                <div class="log-entry log-info">Ready to sort. Generate an array and click Start.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-pivot);"></div> Pivot</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-comparing);"></div> Comparing</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-swapping);"></div> Swapping</div>
+        <div class="legend-item"><div class="color-box" style="background-color: var(--bar-sorted);"></div> Sorted</div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const barsContainer = document.getElementById('barsContainer');
+        const sizeSlider = document.getElementById('sizeSlider');
+        const sizeValue = document.getElementById('sizeValue');
+        const delayInput = document.getElementById('delayInput');
+        const delayValue = document.getElementById('delayValue');
+        const generateBtn = document.getElementById('generateBtn');
+        const sortBtn = document.getElementById('sortBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const loggerContent = document.getElementById('loggerContent');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+        // State variables
+        let array = [];
+        let bars = [];
+        let delayTime = 500;
+        let isSorting = false;
+        let isPaused = false;
+        let pausePromise = null;
+        let resolvePause = null;
+        let sleepResolve = null;
+        let sleepTimeout = null;
+        let currentSortId = 0; // Used to cancel previous sorts
+
+        // Initialize
+        function init() {
+            updateDelay();
+            generateArray();
+            
+            // Event Listeners
+            sizeSlider.addEventListener('input', () => {
+                sizeValue.innerText = sizeSlider.value;
+                generateArray();
+            });
+
+            delayInput.addEventListener('input', updateDelay);
+            
+            generateBtn.addEventListener('click', generateArray);
+
+            themeToggleBtn.addEventListener('click', () => {
+                document.body.classList.toggle('light-mode');
+                const isLight = document.body.classList.contains('light-mode');
+                themeToggleBtn.innerText = isLight ? '🌙' : '☀️';
+                // Update label colors to contrast against background correctly
+                for (let i = 0; i < bars.length; i++) {
+                    updateLabelPositions(bars[i], array[i]);
+                }
+            });
+            
+            pauseBtn.addEventListener('click', () => {
+                isPaused = !isPaused;
+                toggleControls(isSorting);
+                
+                if (isPaused) {
+                    if (sleepResolve) {
+                        clearTimeout(sleepTimeout);
+                        sleepResolve();
+                        sleepResolve = null;
+                    }
+                    logMessage('Visualization paused.', 'info');
+                } else {
+                    if (resolvePause) {
+                        resolvePause();
+                        pausePromise = null;
+                        resolvePause = null;
+                    }
+                    logMessage('Visualization resumed.', 'info');
+                }
+            });
+
+            stepBtn.addEventListener('click', () => {
+                if (!isSorting) {
+                    isPaused = true;
+                    startSortingProcess();
+                } else if (isPaused && resolvePause) {
+                    resolvePause();
+                    pausePromise = null;
+                    resolvePause = null;
+                }
+            });
+
+            sortBtn.addEventListener('click', () => {
+                if (isSorting) return;
+                isPaused = false;
+                startSortingProcess();
+            });
+
+            clearLogBtn.addEventListener('click', clearLog);
+        }
+
+        async function startSortingProcess() {
+            currentSortId++;
+            isSorting = true;
+            toggleControls(true);
+            clearLog();
+            logMessage(`Started Quick Sort on array of size ${array.length}`, 'info');
+            
+            await quickSort(0, array.length - 1, currentSortId);
+            
+            if (isSorting) { // If not cancelled
+                logMessage('Array is completely sorted!', 'success');
+                markAllSorted();
+            }
+            
+            isSorting = false;
+            isPaused = false;
+            toggleControls(false);
+        }
+
+        // Generate a new random array
+        function generateArray() {
+            if (isSorting) {
+                currentSortId++; // Cancels ongoing sort
+                isSorting = false;
+                if (isPaused) {
+                    isPaused = false;
+                    if (resolvePause) resolvePause();
+                    pausePromise = null;
+                    resolvePause = null;
+                }
+                toggleControls(false);
+                logMessage('Sorting cancelled. Generated new array.', 'info');
+            }
+
+            const size = parseInt(sizeSlider.value);
+            array = [];
+            barsContainer.innerHTML = '';
+            bars = [];
+
+            // Activate dense mode if size > 25 (Hides badges and numbers)
+            const showText = size <= 25;
+            barsContainer.setAttribute('data-dense', showText ? 'false' : 'true');
+
+            for (let i = 0; i < size; i++) {
+                // Random value between 10 and 100
+                const val = Math.floor(Math.random() * 90) + 10;
+                array.push(val);
+
+                const col = document.createElement('div');
+                col.className = 'bar-column state-default';
+                
+                const track = document.createElement('div');
+                track.className = 'bar-track';
+                
+                const fill = document.createElement('div');
+                fill.className = 'bar-fill';
+                fill.style.height = `${val}%`;
+
+                let valLabel, badge, indexLabel;
+
+                if (showText) {
+                    valLabel = document.createElement('div');
+                    valLabel.className = 'bar-value';
+                    valLabel.innerText = val;
+                    
+                    badge = document.createElement('div');
+                    badge.className = 'bar-badge';
+                    
+                    track.appendChild(badge);
+                    track.appendChild(valLabel);
+
+                    indexLabel = document.createElement('div');
+                    indexLabel.className = 'bar-index';
+                    indexLabel.innerText = `[${i}]`;
+                }
+
+                track.appendChild(fill);
+                col.appendChild(track);
+                if (showText) col.appendChild(indexLabel);
+
+                barsContainer.appendChild(col);
+                
+                const barObj = { col, track, fill, valLabel, badge, indexLabel };
+                bars.push(barObj);
+
+                if (showText) updateLabelPositions(barObj, val);
+            }
+        }
+
+        // Update Position of text labels & badges based on height
+        function updateLabelPositions(barObj, val) {
+            if (!barObj.valLabel) return;
+            // If the bar is too tall, put the number *inside* the filled part.
+            // If the bar is short, put the number *above* the filled part.
+            if (val > 85) {
+                barObj.valLabel.style.bottom = `10px`; 
+                barObj.valLabel.style.color = '#ffffff'; 
+                barObj.badge.style.bottom = `calc(${val}% + 5px)`;
+            } else {
+                barObj.valLabel.style.bottom = `calc(${val}% + 8px)`;
+                barObj.valLabel.style.color = 'var(--text-main)'; 
+                barObj.badge.style.bottom = `calc(${val}% + 30px)`;
+            }
+        }
+
+        // Update sorting delay based on slider
+        function updateDelay() {
+            const seconds = parseFloat(delayInput.value);
+            delayTime = seconds * 1000;
+            delayValue.innerText = seconds.toFixed(2);
+        }
+
+        // Helper: Sleep function for visualization
+        async function sleep(ms) {
+            if (!isPaused) {
+                await new Promise(resolve => {
+                    sleepResolve = resolve;
+                    sleepTimeout = setTimeout(() => {
+                        sleepResolve = null;
+                        resolve();
+                    }, ms);
+                });
+            } else {
+                // Yield to main thread for UI rendering when stepping manually
+                await new Promise(resolve => requestAnimationFrame(resolve));
+            }
+
+            if (isPaused) {
+                if (!pausePromise) {
+                    pausePromise = new Promise(resolve => {
+                        resolvePause = resolve;
+                    });
+                }
+                await pausePromise;
+            }
+        }
+
+        // Toggle UI controls during sort
+        function toggleControls(disabled) {
+            sizeSlider.disabled = disabled;
+            sortBtn.disabled = disabled;
+            
+            pauseBtn.disabled = !disabled;
+            
+            if (!disabled) {
+                // Initial/Stopped state
+                stepBtn.disabled = false;
+                stepBtn.style.backgroundColor = 'var(--accent)';
+                pauseBtn.style.backgroundColor = 'var(--text-muted)';
+                pauseBtn.innerText = 'Pause';
+            } else if (isPaused) {
+                // Sorting but paused
+                stepBtn.disabled = false;
+                stepBtn.style.backgroundColor = 'var(--accent)';
+                pauseBtn.innerText = 'Resume';
+                pauseBtn.style.backgroundColor = 'var(--bar-pivot)';
+            } else {
+                // Sorting and running
+                stepBtn.disabled = true;
+                stepBtn.style.backgroundColor = 'var(--text-muted)';
+                pauseBtn.innerText = 'Pause';
+                pauseBtn.style.backgroundColor = 'var(--accent)';
+            }
+        }
+
+        // --- Logger Functions ---
+        function logMessage(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.classList.add('log-entry', `log-${type}`);
+            entry.innerHTML = message;
+            loggerContent.appendChild(entry);
+            loggerContent.scrollTop = loggerContent.scrollHeight;
+        }
+
+        function clearLog() {
+            loggerContent.innerHTML = '';
+        }
+
+        // --- Visualization State Management ---
+        async function setBarState(index, state, sortId, badgeText = '') {
+            if (sortId !== currentSortId) return;
+            const barObj = bars[index];
+            const STATES = ['state-default', 'state-comparing', 'state-pivot', 'state-swapping', 'state-sorted'];
+            
+            STATES.forEach(s => barObj.col.classList.remove(s));
+            barObj.col.classList.add(`state-${state}`);
+            
+            if (barObj.badge) {
+                if (badgeText) {
+                    barObj.badge.innerText = badgeText;
+                    barObj.badge.style.display = 'block';
+                } else {
+                    barObj.badge.style.display = 'none';
+                }
+            }
+        }
+
+        async function swapVisual(i, j, sortId) {
+            if (sortId !== currentSortId) return;
+            
+            // Visual highlight for swapping
+            await setBarState(i, 'swapping', sortId, 'SWAP');
+            await setBarState(j, 'swapping', sortId, 'SWAP');
+            await sleep(delayTime);
+            
+            if (sortId !== currentSortId) return;
+
+            // Swap fill heights
+            const tempHeight = bars[i].fill.style.height;
+            bars[i].fill.style.height = bars[j].fill.style.height;
+            bars[j].fill.style.height = tempHeight;
+            
+            // Swap text numbers and adjust dynamic positions
+            if (bars[i].valLabel && bars[j].valLabel) {
+                const tempText = bars[i].valLabel.innerText;
+                bars[i].valLabel.innerText = bars[j].valLabel.innerText;
+                bars[j].valLabel.innerText = tempText;
+                
+                updateLabelPositions(bars[i], parseInt(bars[i].valLabel.innerText));
+                updateLabelPositions(bars[j], parseInt(bars[j].valLabel.innerText));
+            }
+
+            // Swap values in logical array
+            let temp = array[i];
+            array[i] = array[j];
+            array[j] = temp;
+
+            await sleep(delayTime);
+        }
+
+        function markAllSorted() {
+            for (let i = 0; i < bars.length; i++) {
+                setBarState(i, 'sorted', currentSortId);
+            }
+        }
+
+        // --- Quick Sort Algorithm ---
+        async function partition(low, high, sortId) {
+            let pivotValue = array[high];
+            let pivotIndex = low;
+            
+            if (sortId !== currentSortId) return;
+
+            logMessage(`<strong>Partitioning range [${low} to ${high}]</strong>. Selected Pivot: <b>${pivotValue}</b> (at index ${high})`, 'pivot');
+            await setBarState(high, 'pivot', sortId, 'PIVOT');
+            await sleep(delayTime);
+
+            for (let i = low; i < high; i++) {
+                if (sortId !== currentSortId) return;
+
+                logMessage(`Comparing element <b>${array[i]}</b> with Pivot <b>${pivotValue}</b>`, 'compare');
+                await setBarState(i, 'comparing', sortId, 'SCAN');
+                
+                // Only mark pivotIndex if it's not the one we are actively scanning to prevent color override
+                if (i !== pivotIndex) {
+                    await setBarState(pivotIndex, 'comparing', sortId, 'TARGET');
+                }
+                
+                await sleep(delayTime);
+
+                if (array[i] < pivotValue) {
+                    logMessage(`<b>${array[i]}</b> is less than Pivot. Swapping with element at index ${pivotIndex} (<b>${array[pivotIndex]}</b>).`, 'swap');
+                    
+                    if (i !== pivotIndex) {
+                        await swapVisual(i, pivotIndex, sortId);
+                    }
+                    
+                    await setBarState(pivotIndex, 'default', sortId);
+                    pivotIndex++;
+                } else {
+                    logMessage(`<b>${array[i]}</b> is greater or equal to Pivot. No swap.`, 'info');
+                }
+                
+                await setBarState(i, 'default', sortId);
+                if (pivotIndex < high) {
+                    await setBarState(pivotIndex, 'default', sortId);
+                }
+            }
+
+            if (sortId !== currentSortId) return;
+
+            // Move pivot to its correct position
+            logMessage(`Placing Pivot <b>${pivotValue}</b> in its correct sorted position (index ${pivotIndex}).`, 'swap');
+            await swapVisual(pivotIndex, high, sortId);
+            
+            // Mark the sorted pivot element
+            await setBarState(pivotIndex, 'sorted', sortId);
+            logMessage(`Pivot <b>${pivotValue}</b> is now locked in its final position.`, 'success');
+            
+            // Reset colors of remaining elements in this partition scope
+            for (let k = low; k <= high; k++) {
+                if (k !== pivotIndex) {
+                    await setBarState(k, 'default', sortId);
+                }
+            }
+
+            return pivotIndex;
+        }
+
+        async function quickSort(low, high, sortId) {
+            if (sortId !== currentSortId) return;
+
+            if (low < high) {
+                let pi = await partition(low, high, sortId);
+                if (sortId !== currentSortId) return;
+
+                logMessage(`Recursively sorting left sub-array [${low} to ${pi - 1}]...`, 'info');
+                await quickSort(low, pi - 1, sortId);
+                if (sortId !== currentSortId) return;
+                
+                logMessage(`Recursively sorting right sub-array [${pi + 1} to ${high}]...`, 'info');
+                await quickSort(pi + 1, high, sortId);
+                
+            } else if (low === high && low >= 0 && low < array.length) {
+                await setBarState(low, 'sorted', sortId);
+                logMessage(`Element <b>${array[low]}</b> at index ${low} is automatically in its final sorted position.`, 'success');
+            }
+        }
+
+        // Start
+        window.onload = init;
+    </script>
+</body>
+</html>
