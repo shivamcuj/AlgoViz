@@ -70,13 +70,6 @@
   font-size: 18px;
 }
 
-.navbar nav a {
-  margin-left: 20px;
-  text-decoration: none;
-  color: #444;
-  font-size: 14px;
-}
-
 /* Hero Section */
 .hero {
   text-align: center;
@@ -117,21 +110,6 @@
   margin-bottom: 30px;
 }
 
-/* Button */
-.cta-btn {
-  margin-right: 21px;
-  padding: 12px 30px;
-  border-radius: 25px;
-  border: none;
-  background: #111;
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.cta-btn:hover {
-  background: #333;
-}
 .orbit {
   position: absolute;
   top: 50%;
@@ -212,15 +190,16 @@
     sans-serif;
   font-size: 60px;
   font-weight: 400;
-  margin-bottom: 30px;
+  margin-bottom: 70px;
+  margin-top: 150px;
 }
 
 /* FLOATING CARDS */
 .cards {
   display: flex;
   justify-content: center;
-  gap: 15px;
-  margin-bottom: 30px;
+  gap: 200px;
+  margin-bottom: 110px;
 }
 
 .cards img {
@@ -236,7 +215,18 @@
 
 /* cards background */
 .a1 {
-  font-family: "Inter", sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    "Open Sans",
+    "Helvetica Neue",
+    sans-serif;
   font-weight: 700;
   color: #1f2a33;
   width: 260px;
@@ -246,13 +236,7 @@
   transform: rotate(-5deg);
   transition: 0.3s ease;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  background: linear-gradient(
-    to bottom,
-    #5f7387 0%,
-    #8fa3b5 35%,
-    #c9d3dc 65%,
-    #e9eef2 100%
-  );
+  background: linear-gradient(135deg, #eaddd3 0%, #d8c9bd 100%);
 }
 .a1:hover {
   transform: scale(1.1) rotate(0deg);
@@ -280,7 +264,7 @@
   transform: rotate(-2deg);
   transition: 0.3s ease;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  background-color: #f5f6f7;
+  background: linear-gradient(145deg, #f7f7f7 0%, #e8e8e8 100%);
 }
 .a2:hover {
   transform: scale(1.1) rotate(0deg);
@@ -308,65 +292,9 @@
   transform: rotate(4deg);
   transition: 0.3s ease;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  background-color: #f5f6f7;
+  background: linear-gradient(180deg, #f2f1ee, #d5c3a6);
 }
 .a3:hover {
-  transform: scale(1.1) rotate(0deg);
-  z-index: 2;
-}
-.a4 {
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    "Open Sans",
-    "Helvetica Neue",
-    sans-serif;
-  font-weight: 700;
-  color: #2b2e33;
-  width: 260px;
-  height: 310px;
-  object-fit: cover;
-  border-radius: 12px;
-  transform: rotate(-5deg);
-  transition: 0.3s ease;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  background: linear-gradient(135deg, #f43f5e, #fda4af);
-}
-.a4:hover {
-  transform: scale(1.1) rotate(0deg);
-  z-index: 2;
-}
-.a5 {
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    "Open Sans",
-    "Helvetica Neue",
-    sans-serif;
-  font-weight: 700;
-  color: #2b2e33;
-  width: 260px;
-  height: 310px;
-  object-fit: cover;
-  border-radius: 12px;
-  transform: rotate(-3deg);
-  transition: 0.3s ease;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  background: linear-gradient(135deg, #facc15, #fde68a);
-}
-.a5:hover {
   transform: scale(1.1) rotate(0deg);
   z-index: 2;
 }
@@ -375,9 +303,166 @@
 .glow-container {
   background-color: #ffffff;
   border-radius: 20px; /* Optional: rounded corners */
-  position: relative;
-  padding-top: 250px;
-  padding-bottom: 250px;
+
+  padding-bottom: 90px;
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* CARD */
+.collapsible-card {
+  position: relative;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    "Open Sans",
+    "Helvetica Neue",
+    sans-serif;
+  font-weight: Bold;
+  color: #2b2e33;
+  width: 260px;
+  height: 310px;
+  object-fit: cover;
+  border-radius: 12px;
+  transform: rotate(-2deg);
+  transition: 0.3s ease;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  background-color: #f5f6f7;
+}
+
+/* Hide checkbox */
+.collapsible-card input {
+  display: none;
+}
+
+/* Clickable image */
+.collapsible-card label {
+  cursor: pointer;
+  display: block;
+}
+
+/* POPUP */
+.popup {
+  position: absolute;
+
+  bottom: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+
+  width: 240px;
+
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px);
+
+  border-radius: 20px;
+  padding: 13px;
+
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+
+  opacity: 0;
+  pointer-events: none;
+
+  transition: all 0.4s ease;
+
+  z-index: 4;
+}
+
+/* SHOW POPUP */
+.collapsible-card input:checked ~ .popup {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+/* TEXT */
+.popup h3 {
+  margin-bottom: 10px;
+  font-size: 20px;
+  color: #1f2a33;
+}
+
+.popup p {
+  font-size: 14px;
+  color: #4b5d6b;
+  line-height: 1.5;
+  margin-bottom: 15px;
+}
+
+/* BUTTON */
+.popup button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 20px;
+  background: #1f2a33;
+  color: white;
+  cursor: pointer;
+}
+
+.popup::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  border-width: 10px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.12) transparent transparent transparent;
+}
+
+/* FOOTER */
+.footer {
+  background: #f5f5f5;
+  padding: 70px 40px 40px;
+  text-align: center;
+  border-top: 1px solid #ececec;
+}
+
+/* LOGO */
+.footer-logo {
+  font-size: 32px;
+  color: #555;
+  margin-bottom: 30px;
+}
+
+/* NAVIGATION */
+.footer-nav {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.footer-nav a {
+  text-decoration: none;
+  color: #777;
+  font-size: 13px;
+  letter-spacing: 2px;
+  font-weight: 500;
+  transition: 0.3s ease;
+}
+
+.footer-nav a:hover {
+  color: #111;
+}
+
+/* LINE */
+.footer-line {
+  width: 80%;
+  height: 1px;
+  background: #ddd;
+  margin: 0 auto 30px;
+}
+
+/* COPYRIGHT */
+.footer-copy {
+  font-size: 12px;
+  color: #999;
 }
