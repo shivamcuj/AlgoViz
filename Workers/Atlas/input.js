@@ -16,6 +16,7 @@ const AtlasInput = (() => {
     let _overlay = null;   // the floating input DOM element
     let _pendingNodeId = null;
     let _onSubmit = null;  // callback({ snapshot, selection })
+    let _insertCallback = null;  // set during insert flow; called with (value) on confirm
 
     // ── panning state ──────────────────────────────────────────────────────────
     let _isPanning = false;
@@ -186,35 +187,64 @@ const AtlasInput = (() => {
             _openOverlay(e.clientX, e.clientY);
 
         } else if (mode === 'SELECTING') {
-            // Click active node → select it → transition to READY
+            // Click active node
             if (!node || !node.isActive) return;
-            AtlasInternalState.setSelectedNode(node.id);
-            AtlasInternalState.setMode('READY');
-            _updateControlsForMode('READY');
-            AtlasRenderer.render();
 
-            if (typeof BSTLogger !== 'undefined') {
-                const sel = AtlasInternalState.getSelection();
-                BSTLogger.onNodeSelected(node.id, node.value, sel.action);
+            const sel = AtlasInternalState.getSelection();
+
+            if (sel.action === 'insert') {
+                // Insert: clicking any active node triggers the value popup.
+                // The subtree rooted at the clicked node will be rebuilt around the new value.
+                const snapshot = Bus.getAtlas().snapshot;
+                const clickedId  = node.id;
+                const clickedVal = node.value;
+                _insertCallback = (value) => _runInsert(snapshot, clickedId, value);
+                _openOverlay(e.clientX, e.clientY, {
+                    label:       `Replace node (current: ${clickedVal})`,
+                    confirmText: 'Insert',
+                });
+                if (typeof BSTLogger !== 'undefined')
+                    BSTLogger.onNodeSelected(clickedId, clickedVal, 'insert');
+            } else {
+                // Delete / Search / other: select node and go to READY
+                AtlasInternalState.setSelectedNode(node.id);
+                AtlasInternalState.setMode('READY');
+                _updateControlsForMode('READY');
+                AtlasRenderer.render();
+
+                if (typeof BSTLogger !== 'undefined') {
+                    BSTLogger.onNodeSelected(node.id, node.value, sel.action);
+                }
             }
         }
         // MENU, READY, ANIMATION — canvas clicks are no-ops
     }
 
     // ── overlay open/close ───────────────────────────────────────────────────
-    function _openOverlay(clientX, clientY) {
+    /**
+     * @param {number} clientX
+     * @param {number} clientY
+     * @param {{ label?: string, confirmText?: string }} [opts]
+     */
+    function _openOverlay(clientX, clientY, opts = {}) {
         const input = document.getElementById('atlas-node-input');
         input.value = '';
+
+        // Optional label / button text override
+        const labelEl   = _overlay.querySelector('.atlas-overlay-label');
+        const confirmEl = document.getElementById('atlas-overlay-confirm');
+        if (labelEl)   labelEl.textContent   = opts.label       ?? 'Enter node value';
+        if (confirmEl) confirmEl.textContent = opts.confirmText ?? 'Add Node';
 
         // position near the click, stay in viewport
         const OW = 220, OH = 130;
         let left = clientX + 12;
-        let top = clientY + 12;
-        if (left + OW > window.innerWidth) left = clientX - OW - 12;
-        if (top + OH > window.innerHeight) top = clientY - OH - 12;
+        let top  = clientY + 12;
+        if (left + OW > window.innerWidth)  left = clientX - OW - 12;
+        if (top  + OH > window.innerHeight) top  = clientY - OH - 12;
 
-        _overlay.style.left = `${left}px`;
-        _overlay.style.top = `${top}px`;
+        _overlay.style.left    = `${left}px`;
+        _overlay.style.top     = `${top}px`;
         _overlay.style.display = 'block';
 
         // animate in
@@ -229,7 +259,14 @@ const AtlasInput = (() => {
 
     function _closeOverlay() {
         _overlay.style.display = 'none';
-        _pendingNodeId = null;
+        _pendingNodeId  = null;
+        _insertCallback = null;
+
+        // Restore default overlay text
+        const labelEl   = _overlay?.querySelector('.atlas-overlay-label');
+        const confirmEl = document.getElementById('atlas-overlay-confirm');
+        if (labelEl)   labelEl.textContent   = 'Enter node value';
+        if (confirmEl) confirmEl.textContent = 'Add Node';
     }
 
     // ── confirm value ─────────────────────────────────────────────────────────
@@ -241,7 +278,15 @@ const AtlasInput = (() => {
         const value = Number(raw);
         if (isNaN(value)) { input.classList.add('shake'); setTimeout(() => input.classList.remove('shake'), 400); return; }
 
-        // Save before _closeOverlay() nulls it out
+        // ── Insert flow ── callback set by _onClick SELECTING (insert action)
+        if (_insertCallback) {
+            const cb = _insertCallback;
+            _closeOverlay();
+            cb(value);
+            return;
+        }
+
+        // ── BUILD flow ── normal node activation
         const nodeId = _pendingNodeId;
         _closeOverlay();
 
@@ -405,6 +450,91 @@ const AtlasInput = (() => {
         console.log('%c[ATLAS] Mode → MENU (cycle complete)', 'color:#38bdf8;font-weight:bold');
     }
 
+    // ── Insert handler ────────────────────────────────────────────────────────
+    /**
+     * Called after the insert popup is confirmed.
+     * - Replaces the clicked node's value with `newValue`
+     * - Collects all values from the old subtree (including the old root value)
+     * - Rebuilds the subtree as a valid BST via rebuildSubtreeAt()
+     *
+     * @param {{ rootId: string|null, nodes: Array }} snapshot
+     * @param {string} clickedNodeId — the node the user clicked
+     * @param {number} newValue      — value entered in the popup
+     */
+    function _runInsert(snapshot, clickedNodeId, newValue) {
+        const TAG = '[INSERT]';
+
+        if (typeof BSTInsert === 'undefined') {
+            console.warn(`${TAG} BSTInsert solver not loaded. Aborting.`);
+            _returnToMenu();
+            return;
+        }
+
+        const targetNode = AtlasInternalState.getNode(clickedNodeId);
+        const oldValue   = targetNode?.value ?? '?';
+
+        console.log(`%c${TAG} Node ${clickedNodeId}: ${oldValue} → ${newValue}. Rebuilding subtree…`, 'color:#4ade80;font-weight:bold');
+        if (typeof BSTLogger !== 'undefined')
+            BSTLogger.log(
+                `Replacing <strong style="color:#38bdf8">${clickedNodeId}</strong> ` +
+                `(old: <strong>${oldValue}</strong>) → <strong style="color:#4ade80">${newValue}</strong>. ` +
+                `Rebuilding subtree…`,
+                'action'
+            );
+
+        // Run pure solver — collects subtree values and validates
+        const result = BSTInsert.runOn(snapshot, clickedNodeId, newValue);
+
+        if (!result.ok) {
+            console.warn(`${TAG} ${result.message}`);
+            if (typeof BSTLogger !== 'undefined')
+                BSTLogger.log(`Insert failed: ${result.message}`, 'warn');
+            _returnToMenu();
+            return;
+        }
+
+        // Rebuild the subtree in state
+        const ok = AtlasInternalState.rebuildSubtreeAt(
+            result.targetNodeId,
+            result.newRootValue,
+            result.valuesToReinsert
+        );
+
+        if (!ok) {
+            console.warn(`${TAG} rebuildSubtreeAt failed.`);
+            if (typeof BSTLogger !== 'undefined')
+                BSTLogger.log('Subtree rebuild failed — check console.', 'warn');
+            _returnToMenu();
+            return;
+        }
+
+        // Recompute layout and render the updated tree
+        AtlasLayout.compute(_canvas);
+        AtlasRenderer.render();
+
+        console.log(`%c${TAG} Done. Node ${clickedNodeId} → ${newValue}.`, 'color:#4ade80;font-weight:bold');
+        if (typeof BSTLogger !== 'undefined') {
+            BSTLogger.log(
+                `Node <strong style="color:#38bdf8">${clickedNodeId}</strong> updated to ` +
+                `<strong style="color:#4ade80">${newValue}</strong>. ` +
+                `Subtree rebuilt with [${result.valuesToReinsert.join(', ')}].`,
+                'success'
+            );
+        }
+
+        _returnToMenu();
+    }
+
+    /** Shared helper: reset selection and go back to MENU. */
+    function _returnToMenu() {
+        AtlasInternalState.clearSelection();
+        AtlasInternalState.setMode('MENU');
+        _showMenu();
+        _updateControlsForMode('MENU');
+        if (_buildBtn) _buildBtn.style.display = 'inline-flex';
+        AtlasRenderer.render();
+    }
+
     // ── Delete handler ────────────────────────────────────────────────────────
     /**
      * Confirm the node to delete, run BSTDelete solver, apply mutations to
@@ -417,6 +547,7 @@ const AtlasInput = (() => {
      * @param {string} to_delete — node ID selected by the user
      */
     function _runDelete(snapshot, to_delete) {
+
         const TAG = '[DELETE]';
 
         if (!to_delete) {

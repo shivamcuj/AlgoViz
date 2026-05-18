@@ -168,6 +168,145 @@ const AtlasInternalState = (() => {
         }
     }
 
+    /**
+     * Activate the correct placeholder node for a BST insert operation.
+     * Works outside BUILD mode (used after tree is submitted).
+     *
+     * Cases:
+     *   isRoot === true   — activate the existing root placeholder (empty tree)
+     *   parentId !== null — activate parent[side] placeholder
+     *
+     * @param {string|null} parentId
+     * @param {'left'|'right'|null} side
+     * @param {number} value
+     * @param {boolean} isRoot
+     * @returns {boolean} true on success
+     */
+    function applyInsertMutation(parentId, side, value, isRoot = false) {
+        let placeholderId;
+
+        if (isRoot) {
+            // Empty-tree case: the root node should already be a dimmed placeholder
+            placeholderId = _root;
+        } else {
+            const parent = _nodes[parentId];
+            if (!parent) {
+                console.warn(`[ATLAS STATE] applyInsertMutation: parent "${parentId}" not found.`);
+                return false;
+            }
+            placeholderId = parent[side];
+        }
+
+        const node = _nodes[placeholderId];
+        if (!node) {
+            console.warn(`[ATLAS STATE] applyInsertMutation: placeholder "${placeholderId}" not found.`);
+            return false;
+        }
+        if (node.isActive) {
+            console.warn(`[ATLAS STATE] applyInsertMutation: node "${placeholderId}" is already active.`);
+            return false;
+        }
+
+        // Activate the placeholder
+        node.isActive = true;
+        node.value    = value;
+
+        // Spawn fresh placeholder children
+        const leftChild  = _createNode({ parentId: placeholderId, side: 'left',  depth: node.depth + 1 });
+        const rightChild = _createNode({ parentId: placeholderId, side: 'right', depth: node.depth + 1 });
+        node.left  = leftChild.id;
+        node.right = rightChild.id;
+
+        console.log(
+            `%c[ATLAS STATE] Inserted value ${value} at node "${placeholderId}"`,
+            'color:#4ade80;font-weight:bold'
+        );
+        return true;
+    }
+
+    /**
+     * Replace a node's value with `newRootValue` and rebuild its entire subtree
+     * as a valid BST using the `valuesToReinsert` array.
+     *
+     * Steps:
+     *   1. Set node[nodeId].value = newRootValue
+     *   2. Purge all descendants of nodeId from _nodes
+     *   3. Give nodeId fresh placeholder children
+     *   4. BST-insert each value from valuesToReinsert into the subtree
+     *
+     * @param {string}   nodeId            — ID of the node to overwrite
+     * @param {number}   newRootValue      — new value for that node
+     * @param {number[]} valuesToReinsert  — old subtree values (incl. old root value)
+     * @returns {boolean}
+     */
+    function rebuildSubtreeAt(nodeId, newRootValue, valuesToReinsert) {
+        const node = _nodes[nodeId];
+        if (!node || !node.isActive) {
+            console.warn(`[ATLAS STATE] rebuildSubtreeAt: node "${nodeId}" not found or inactive.`);
+            return false;
+        }
+
+        // 1. Set the new value
+        node.value = newRootValue;
+
+        // 2. Purge all descendants (children stay as placeholders; we delete them entirely
+        //    and create fresh ones so depth/parent metadata is clean).
+        function _purgeAll(id) {
+            const n = _nodes[id];
+            if (!n) return;
+            if (n.left)  _purgeAll(n.left);
+            if (n.right) _purgeAll(n.right);
+            delete _nodes[id];
+        }
+        if (node.left)  { _purgeAll(node.left);  node.left  = null; }
+        if (node.right) { _purgeAll(node.right); node.right = null; }
+
+        // 3. Spawn fresh placeholder children
+        const lc = _createNode({ parentId: nodeId, side: 'left',  depth: node.depth + 1 });
+        const rc = _createNode({ parentId: nodeId, side: 'right', depth: node.depth + 1 });
+        node.left  = lc.id;
+        node.right = rc.id;
+
+        // 4. BST-insert each value into the subtree rooted at nodeId
+        function _subtreeInsert(rootId, value) {
+            let curId = rootId;
+            while (true) {
+                const cur = _nodes[curId];
+                if (!cur) break;
+
+                const side     = value < cur.value ? 'left' : 'right';
+                const childId  = cur[side];
+                const child    = _nodes[childId];
+
+                if (!child) break;   // structural error guard
+
+                if (child.isActive) {
+                    curId = childId;  // descend
+                } else {
+                    // Activate this placeholder
+                    child.isActive = true;
+                    child.value    = value;
+                    const newLc = _createNode({ parentId: childId, side: 'left',  depth: child.depth + 1 });
+                    const newRc = _createNode({ parentId: childId, side: 'right', depth: child.depth + 1 });
+                    child.left  = newLc.id;
+                    child.right = newRc.id;
+                    break;
+                }
+            }
+        }
+
+        for (const v of valuesToReinsert) {
+            _subtreeInsert(nodeId, v);
+        }
+
+        console.log(
+            `%c[ATLAS STATE] Subtree at "${nodeId}" rebuilt with root=${newRootValue}, ` +
+            `reinserted: [${valuesToReinsert.join(', ')}]`,
+            'color:#4ade80;font-weight:bold'
+        );
+        return true;
+    }
+
     // ── mode API ────────────────────────────────────────────────────────────
     function getMode() { return _mode; }
 
@@ -239,7 +378,7 @@ const AtlasInternalState = (() => {
     function clearAnimatedNode()      { _animatedNodeId = null; }
 
     return {
-        init, activateNode, applyDeleteMutations,
+        init, activateNode, applyDeleteMutations, applyInsertMutation, rebuildSubtreeAt,
         getNode, getAllNodes, getRootId,
         isFrozen, getSnapshot,
         getMode, setMode,
