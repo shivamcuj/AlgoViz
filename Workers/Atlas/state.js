@@ -83,6 +83,91 @@ const AtlasInternalState = (() => {
         return { left: leftChild, right: rightChild };
     }
 
+    /**
+     * Replay a list of mutation descriptors produced by BSTDelete.runOn().
+     * Each mutation is one of:
+     *   { op:'setValue',   id, value }
+     *   { op:'setLink',    id, side, childId }  — side: 'left'|'right'
+     *   { op:'setParent',  id, parentId, side }
+     *   { op:'removeNode', id }                 — removes node + its dimmed placeholders
+     *   { op:'setRoot',    id }
+     *   { op:'deactivate', id }                 — make the node a dimmed placeholder
+     *
+     * @param {Array} mutations
+     */
+    function applyDeleteMutations(mutations) {
+        for (const m of mutations) {
+            switch (m.op) {
+
+                case 'setValue': {
+                    const n = _nodes[m.id];
+                    if (n) n.value = m.value;
+                    break;
+                }
+
+                case 'setLink': {
+                    const n = _nodes[m.id];
+                    if (n) {
+                        n[m.side] = m.childId;   // null or an id
+                    }
+                    break;
+                }
+
+                case 'setParent': {
+                    const n = _nodes[m.id];
+                    if (n) {
+                        n.parentId = m.parentId;
+                        n.side     = m.side;
+                    }
+                    break;
+                }
+
+                case 'removeNode': {
+                    const n = _nodes[m.id];
+                    if (!n) break;
+
+                    // Also purge any dimmed placeholder children that are now
+                    // orphaned (they were the deleted node's empty slots).
+                    function _purge(id) {
+                        const node = _nodes[id];
+                        if (!node) return;
+                        if (node.left)  _purge(node.left);
+                        if (node.right) _purge(node.right);
+                        delete _nodes[id];
+                    }
+
+                    // Only recursively purge inactive (dimmed) children
+                    if (n.left  && _nodes[n.left]  && !_nodes[n.left].isActive)  _purge(n.left);
+                    if (n.right && _nodes[n.right] && !_nodes[n.right].isActive) _purge(n.right);
+
+                    delete _nodes[m.id];
+                    break;
+                }
+
+                case 'setRoot': {
+                    _root = m.id;
+                    break;
+                }
+
+                case 'deactivate': {
+                    // Node becomes a dimmed placeholder again (empty tree case)
+                    const n = _nodes[m.id];
+                    if (n) {
+                        n.isActive = false;
+                        n.value    = null;
+                        // purge any children it still holds
+                        if (n.left)  { delete _nodes[n.left];  n.left  = null; }
+                        if (n.right) { delete _nodes[n.right]; n.right = null; }
+                    }
+                    break;
+                }
+
+                default:
+                    console.warn('[ATLAS STATE] Unknown delete mutation op:', m.op);
+            }
+        }
+    }
+
     // ── mode API ────────────────────────────────────────────────────────────
     function getMode() { return _mode; }
 
@@ -154,7 +239,7 @@ const AtlasInternalState = (() => {
     function clearAnimatedNode()      { _animatedNodeId = null; }
 
     return {
-        init, activateNode,
+        init, activateNode, applyDeleteMutations,
         getNode, getAllNodes, getRootId,
         isFrozen, getSnapshot,
         getMode, setMode,
