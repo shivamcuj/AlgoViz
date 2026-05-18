@@ -1,80 +1,48 @@
 ![Status](https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge)
-
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow?style=for-the-badge&logo=javascript)
 ![HTML5](https://img.shields.io/badge/HTML5-Markup-orange?style=for-the-badge&logo=html5)
 ![Canvas](https://img.shields.io/badge/Canvas-2D%20Rendering-blue?style=for-the-badge)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-Utility%20First-38B2AC?style=for-the-badge&logo=tailwindcss)
 
-## → Idea
+## AlgoViz
 
-Instead of just reading algorithms, users can **build their own structures** (like trees or graphs) and watch how algorithms (like BFS) work on them in real time.
+> *How algorithms quietly shape every decision behind the screen.*
 
----
-
-## → How It Works
-
-1. **Create Nodes**
-
-   * Click on the grid to create nodes
-   * Rename and customize them
-
-2. **Connect Nodes**
-
-   * Link nodes to form structures (tree/graph)
-
-3. **Choose Algorithm**
-
-   * Select an algorithm (e.g., BFS)
-
-4. **Run Simulation**
-
-   * The system runs the algorithm step-by-step
-   * Nodes get highlighted during traversal
-
-5. **View Logs**
-
-   * Each step is recorded in a log panel
-   * Helps understand what the algorithm is doing
+AlgoViz turns abstract algorithms into **visual, interactive experiences** — build structures, run algorithms, and watch every step unfold in real time.
 
 ---
 
 ## → Core Components
 
-* **Atlas / Workspace** → Manages grid and nodes
-* **Solver** → Runs algorithms (BFS, DFS, etc.)
-* **Nova / Worker** → Executes algorithm steps
-* **Pulse / MainLoop** → Controls simulation timing
-* **Echo / RenderLoop** → Renders visuals on canvas
-* **Lune / LoggerLoop** → Logs each step of the process
+### 🌳 Binary Tree
+Interactive binary tree builder and visualizer. Insert nodes, then run traversal and search algorithms with step-by-step canvas animation and a live activity log.
 
----
+- **Traversal** — BFS Level Order, DFS In-order / Pre-order / Post-order
+- **Search** — same traversal methods, stops and highlights when target is found
+- **Delete** — handles all three cases (leaf, one child, two children / in-order successor)
 
-## → Features
+### 📊 Sorting
+Side-by-side visualizations of classical sorting algorithms with adjustable speed, pause/step controls, and an execution log.
 
-* Interactive grid system
-* Step-by-step algorithm visualization
-* Adjustable simulation speed
-* Clear logs for learning
-* Modular architecture
+- **Radix Sort** — LSD digit-bucket animation
+- **Merge Sort** — divide-and-conquer merge visualization
+- **Quick Sort** — pivot partitioning animation
 
----
-
-## → Goal
-
-To make algorithms easier to understand by turning them into **visual, interactive experiences** instead of just code.
+### 🧠 Neural Networks *(coming soon)*
 
 ---
 
 ## → Tech Stack
 
-* HTML Canvas
-* JavaScript
-* Tailwind CSS
+- HTML5 Canvas (2D rendering)
+- Vanilla JavaScript (ES6+, modular IIFE architecture)
+- CSS (custom design system, no frameworks)
 
 ---
 
-## → Future Scope
+## → Contributors
 
-* More algorithms (DFS, Dijkstra, A*)
-* Better UI/UX
-* Save/load structures
+Abhishek Rana · Ankit Oujha · Bablu Kumar · Gyan Prakash · [Shivam Kumar](https://github.com/shivamcuj)
+
+---
+
+© 2026 AlgoViz. All rights reserved.
