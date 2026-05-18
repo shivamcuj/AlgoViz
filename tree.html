@@ -54,7 +54,14 @@
         </div>
 
         <div class="logger-container">
-            <div id="logger"></div>
+            <div class="bst-log-header">
+                <span class="bst-log-title">Activity Log</span>
+                <div class="bst-log-controls">
+                    <span class="bst-log-badge" id="bst-log-count">0</span>
+                    <button id="bst-log-clear" class="bst-log-clear-btn">Clear</button>
+                </div>
+            </div>
+            <div id="bst-log-area"></div>
         </div>
 
     </div>
@@ -79,6 +86,9 @@
     <!-- other worker stubs -->
 
     <script src="Workers/Solver/test.js"></script>
+
+    <!-- BST Logger -->
+    <script src="Workers/BSTlogger.js"></script>
 
     <!-- visual scripts -->
     <script src="Visual/Logger/test.js"></script>

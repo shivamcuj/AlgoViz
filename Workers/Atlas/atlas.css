@@ -218,35 +218,141 @@ body {
 
 /* ── Logger panel ──────────────────────────────────────────── */
 .logger-container {
-    flex: 1;               /* fill remaining width, stretch full height */
+    flex: 1;
     min-width: 0;
     border: 1px solid var(--clr-border);
     border-radius: var(--radius-lg);
     background: var(--clr-surface);
-    padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    overflow: hidden;      /* inner #logger scrolls, not the container */
+    overflow: hidden;
 }
 
-.logger-container::before {
-    content: 'Logger';
+/* Header row */
+.bst-log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid var(--clr-border);
+    flex-shrink: 0;
+}
+
+.bst-log-title {
     font-size: 0.7rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--clr-muted);
     text-transform: uppercase;
     letter-spacing: 0.1em;
 }
 
-#logger {
-    flex: 1;
-    font-size: 0.78rem;
+.bst-log-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.bst-log-badge {
+    min-width: 1.4rem;
+    height: 1.4rem;
+    padding: 0 0.35rem;
+    border-radius: 99px;
+    background: rgba(108,99,255,0.18);
+    border: 1px solid rgba(108,99,255,0.35);
+    color: var(--clr-accent-hi);
+    font-size: 0.65rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif;
+}
+
+.bst-log-clear-btn {
+    padding: 0.18rem 0.6rem;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.04);
     color: var(--clr-muted);
-    font-family: 'Courier New', monospace;
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.bst-log-clear-btn:hover {
+    border-color: rgba(248,113,113,0.5);
+    color: #f87171;
+    background: rgba(248,113,113,0.07);
+}
+
+/* Scrollable log area */
+#bst-log-area {
+    flex: 1;
     overflow-y: auto;
+    padding: 0.55rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--clr-border) transparent;
+}
+
+#bst-log-area::-webkit-scrollbar { width: 4px; }
+#bst-log-area::-webkit-scrollbar-track { background: transparent; }
+#bst-log-area::-webkit-scrollbar-thumb {
+    background: var(--clr-border);
+    border-radius: 2px;
+}
+
+/* Individual log entry */
+.bst-log-entry {
+    display: grid;
+    grid-template-columns: 1rem 1fr auto;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding: 0.38rem 0.55rem 0.38rem 0.45rem;
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.025);
+    border-left: 3px solid transparent;
+    font-family: 'Courier New', monospace;
+    font-size: 0.74rem;
+    line-height: 1.45;
+    animation: bstLogSlideIn 0.18s cubic-bezier(0.25,0.8,0.25,1) forwards;
+}
+
+.bst-log-entry:hover {
+    background: rgba(255,255,255,0.045);
+}
+
+.bst-log-icon {
+    font-size: 0.72rem;
+    line-height: 1;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.bst-log-body {
+    color: var(--clr-text);
     word-break: break-word;
 }
+
+.bst-log-body strong { font-weight: 700; }
+.bst-log-body em     { font-style: italic; }
+
+.bst-log-ts {
+    font-size: 0.6rem;
+    color: #374151;
+    white-space: nowrap;
+    align-self: flex-start;
+    margin-top: 0.05rem;
+}
+
+@keyframes bstLogSlideIn {
+    from { opacity: 0; transform: translateX(6px); }
+    to   { opacity: 1; transform: translateX(0);   }
+}
+
 
 /* ── Floating input overlay ────────────────────────────────── */
 #atlas-input-overlay {

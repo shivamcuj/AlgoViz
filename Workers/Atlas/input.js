@@ -68,6 +68,9 @@ const AtlasInput = (() => {
         canvas.addEventListener('contextmenu', e => e.preventDefault());  // suppress browser menu
 
         _submitBtn?.addEventListener('click', _onSubmitBtn);
+
+        // Initialise logger after all DOM is ready
+        if (typeof BSTLogger !== 'undefined') BSTLogger.init();
     }
 
     // ── overlay DOM ─────────────────────────────────────────────────────────
@@ -189,6 +192,11 @@ const AtlasInput = (() => {
             AtlasInternalState.setMode('READY');
             _updateControlsForMode('READY');
             AtlasRenderer.render();
+
+            if (typeof BSTLogger !== 'undefined') {
+                const sel = AtlasInternalState.getSelection();
+                BSTLogger.onNodeSelected(node.id, node.value, sel.action);
+            }
         }
         // MENU, READY, ANIMATION — canvas clicks are no-ops
     }
@@ -240,6 +248,8 @@ const AtlasInput = (() => {
         AtlasInternalState.activateNode(nodeId, value);
         AtlasLayout.compute(_canvas);
         AtlasRenderer.render();
+
+        if (typeof BSTLogger !== 'undefined') BSTLogger.onNodeActivated(nodeId, value);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -275,6 +285,7 @@ const AtlasInput = (() => {
 
         AtlasRenderer.render();
         console.log('%c[ATLAS] Tree Cleared → BUILD', 'color:#f87171;font-weight:bold');
+        if (typeof BSTLogger !== 'undefined') BSTLogger.onTreeCleared();
     }
 
     /** Rebuild the original .atlas-controls DOM (algo-selector + submit btn wrapper). */
@@ -338,6 +349,7 @@ const AtlasInput = (() => {
         AtlasRenderer.render();
 
         console.log('%c[ATLAS] Mode → MENU', 'color:#38bdf8;font-weight:bold');
+        if (typeof BSTLogger !== 'undefined') BSTLogger.onTreeSubmitted(activeCount);
     }
 
     /** Second submit: dispatch selection to solver; run traversal animation if applicable. */
@@ -427,6 +439,11 @@ const AtlasInput = (() => {
 
         console.log(`%c${TAG} Deleting node "${to_delete}"…`, 'color:#f87171;font-weight:bold');
 
+        // Grab node value before we mutate state
+        const _nodeToDelete = AtlasInternalState.getNode(to_delete);
+        const _deleteValue  = _nodeToDelete?.value ?? '?';
+        if (typeof BSTLogger !== 'undefined') BSTLogger.onDeleteStart(to_delete, _deleteValue);
+
         // Brief amber flash so the user sees what's being removed
         AtlasInternalState.setAnimatedNode(to_delete);
         AtlasRenderer.render();
@@ -439,6 +456,7 @@ const AtlasInput = (() => {
 
             if (!result.ok) {
                 console.warn(`${TAG} Solver failed: ${result.message}`);
+                if (typeof BSTLogger !== 'undefined') BSTLogger.log(`Delete failed: ${result.message}`, 'warn');
                 AtlasInternalState.setMode('MENU');
                 _showMenu();
                 _updateControlsForMode('MENU');
@@ -451,6 +469,10 @@ const AtlasInput = (() => {
             AtlasLayout.compute(_canvas);
 
             console.log(`%c${TAG} ${result.message}`, 'color:#34d399;font-weight:bold');
+            if (typeof BSTLogger !== 'undefined') {
+                BSTLogger.onDeleteComplete(to_delete, _deleteValue);
+                BSTLogger.onAnimationComplete('delete');
+            }
 
             // Return to MENU so user can act again
             AtlasInternalState.clearSelection();
@@ -507,6 +529,10 @@ const AtlasInput = (() => {
         }
 
         console.log('%c[ATLAS] Mode → ANIMATION', 'color:#fbbf24;font-weight:bold');
+        if (typeof BSTLogger !== 'undefined') {
+            const mLabel = { bfs:'BFS — Level Order','dfs-inorder':'DFS — In-order','dfs-preorder':'DFS — Pre-order','dfs-postorder':'DFS — Post-order' };
+            BSTLogger.log(`Starting <strong>${mLabel[method] ?? method}</strong> traversal (${nodeIds.length} nodes).`, 'action');
+        }
 
         const STEP_DELAY_MS  = 700;   // time each node stays highlighted (ms)
         const CLEAR_DELAY_MS = 300;   // brief gap between steps
@@ -536,6 +562,7 @@ const AtlasInput = (() => {
                 `%c[${method.toUpperCase()}] Step ${step}/${nodeIds.length} — node ${currentId} (value: ${node?.value ?? '?'})`,
                 'color:#fbbf24'
             );
+            if (typeof BSTLogger !== 'undefined') BSTLogger.onTraversalStep(method, step, nodeIds.length, currentId, node?.value ?? '?');
 
             // Hold highlight, then clear briefly before the next step
             setTimeout(() => {
@@ -597,6 +624,14 @@ const AtlasInput = (() => {
         }
 
         console.log(`%c${TAG} Mode → ANIMATION (target: ${targetId})`, 'color:#fbbf24;font-weight:bold');
+        if (typeof BSTLogger !== 'undefined') {
+            const tNode = AtlasInternalState.getNode(targetId);
+            const mLabel = { bfs:'BFS — Level Order','dfs-inorder':'DFS — In-order','dfs-preorder':'DFS — Pre-order','dfs-postorder':'DFS — Post-order' };
+            BSTLogger.log(
+                `Searching for node <strong style="color:#38bdf8">${targetId}</strong> (value: <strong>${tNode?.value ?? '?'}</strong>) using <strong>${mLabel[method] ?? method}</strong>.`,
+                'action'
+            );
+        }
 
         const STEP_DELAY_MS  = 700;
         const CLEAR_DELAY_MS = 300;
@@ -612,6 +647,7 @@ const AtlasInput = (() => {
                     `%c${TAG} Target "${targetId}" NOT FOUND in tree.`,
                     'color:#f87171;font-weight:bold'
                 );
+                if (typeof BSTLogger !== 'undefined') BSTLogger.onSearchNotFound(method, targetId);
                 setTimeout(_finishAnimation, 500);
                 return;
             }
@@ -628,6 +664,7 @@ const AtlasInput = (() => {
                 `%c${TAG} Visit ${step}/${nodeIds.length} — node ${currentId} (value: ${node?.value ?? '?'})`,
                 'color:#fbbf24'
             );
+            if (typeof BSTLogger !== 'undefined') BSTLogger.onSearchStep(method, step, nodeIds.length, currentId, node?.value ?? '?');
 
             if (currentId === targetId) {
                 // ── FOUND — switch to blue selected ring and stop ────────────
@@ -640,6 +677,7 @@ const AtlasInput = (() => {
                         `%c${TAG} Target "${targetId}" FOUND ✓ (value: ${node?.value ?? '?'})`,
                         'color:#34d399;font-weight:bold'
                     );
+                    if (typeof BSTLogger !== 'undefined') BSTLogger.onSearchFound(method, targetId, node?.value ?? '?');
 
                     // Hold the found highlight briefly, then finish
                     setTimeout(() => {
@@ -673,6 +711,7 @@ const AtlasInput = (() => {
 
         AtlasRenderer.render();
         console.log('%c[ATLAS] Animation complete → BUILD', 'color:#38bdf8;font-weight:bold');
+        if (typeof BSTLogger !== 'undefined') BSTLogger.onAnimationComplete('traversal');
     }
 
 
@@ -698,7 +737,10 @@ const AtlasInput = (() => {
             btn.className = 'atlas-action-btn';
             btn.dataset.action = action.key;
             btn.innerHTML = `<span class="atlas-action-icon">${action.icon}</span>${action.label}`;
-            btn.addEventListener('click', () => _onActionSelected(action.key));
+            btn.addEventListener('click', () => {
+                if (typeof BSTLogger !== 'undefined') BSTLogger.onActionSelected(action.key);
+                _onActionSelected(action.key);
+            });
             _algoSelector.appendChild(btn);
         });
     }
@@ -753,6 +795,7 @@ const AtlasInput = (() => {
                 AtlasRenderer.render();
 
                 console.log(`%c[ATLAS] Mode → SELECTING (search method: ${trav.key})`, 'color:#38bdf8;font-weight:bold');
+                if (typeof BSTLogger !== 'undefined') BSTLogger.onMethodSelected('search', trav.key);
             });
             _algoSelector.appendChild(btn);
         });
@@ -790,6 +833,7 @@ const AtlasInput = (() => {
                 AtlasRenderer.render();
 
                 console.log(`%c[ATLAS] Mode → READY (traversal: ${trav.key})`, 'color:#38bdf8;font-weight:bold');
+                if (typeof BSTLogger !== 'undefined') BSTLogger.onMethodSelected('traversal', trav.key);
             });
             _algoSelector.appendChild(btn);
         });
