@@ -21,21 +21,15 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(
-      circle at 40% 55%,
+    radial-gradient(circle at 40% 55%,
       rgba(0, 180, 255, 0.6) 0%,
-      transparent 40%
-    ),
-    radial-gradient(
-      circle at 50% 60%,
+      transparent 40%),
+    radial-gradient(circle at 50% 60%,
       rgba(255, 80, 80, 0.7) 0%,
-      transparent 40%
-    ),
-    radial-gradient(
-      circle at 55% 45%,
+      transparent 40%),
+    radial-gradient(circle at 55% 45%,
       rgba(255, 120, 200, 0.5) 0%,
-      transparent 40%
-    ),
+      transparent 40%),
     radial-gradient(circle at 65% 40%, rgba(0, 0, 0, 0.6) 0%, transparent 45%);
   filter: blur(80px);
   z-index: 0;
@@ -46,11 +40,9 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    circle at center,
-    rgba(255, 255, 255, 0.2),
-    transparent 60%
-  );
+  background: radial-gradient(circle at center,
+      rgba(255, 255, 255, 0.2),
+      transparent 60%);
   filter: blur(100px);
   z-index: 0;
 }
@@ -75,7 +67,7 @@
   text-align: center;
   max-width: 800px;
   margin: auto;
-  padding-top: 185px;
+  padding-top: 370px;
   position: relative;
   z-index: 2;
 }
@@ -238,10 +230,12 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   background: linear-gradient(135deg, #eaddd3 0%, #d8c9bd 100%);
 }
+
 .a1:hover {
   transform: scale(1.1) rotate(0deg);
   z-index: 2;
 }
+
 .a2 {
   font-family:
     system-ui,
@@ -266,10 +260,12 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   background: linear-gradient(145deg, #f7f7f7 0%, #e8e8e8 100%);
 }
+
 .a2:hover {
   transform: scale(1.1) rotate(0deg);
   z-index: 2;
 }
+
 .a3 {
   font-family:
     system-ui,
@@ -294,6 +290,7 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   background: linear-gradient(180deg, #f2f1ee, #d5c3a6);
 }
+
 .a3:hover {
   transform: scale(1.1) rotate(0deg);
   z-index: 2;
@@ -302,7 +299,8 @@
 /* The specific div with the background */
 .glow-container {
   background-color: #ffffff;
-  border-radius: 20px; /* Optional: rounded corners */
+  border-radius: 20px;
+  /* Optional: rounded corners */
 
   padding-bottom: 90px;
   overflow: hidden;
@@ -374,7 +372,7 @@
 }
 
 /* SHOW POPUP */
-.collapsible-card input:checked ~ .popup {
+.collapsible-card input:checked~.popup {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
   pointer-events: auto;

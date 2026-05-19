@@ -41,7 +41,7 @@ Side-by-side visualizations of classical sorting algorithms with adjustable spee
 
 ## → Contributors
 
-[Abhishek Rana](https://github.com/01ABHISHEKRANA) · Ankit Oujha · [Bablu Kumar](https://github.com/metastab) · Gyan Prakash · [Shivam Kumar](https://github.com/shivamcuj)
+[Abhishek Rana](https://github.com/01ABHISHEKRANA) · Ankit Ojha · [Bablu Kumar](https://github.com/metastab) · Gyan Prakash · [Shivam Kumar](https://github.com/shivamcuj)
 
 ---
 
